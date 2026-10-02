@@ -2,6 +2,8 @@ plugins {
     id 'com.android.application'
 }
 
+def bn = (project.findProperty('buildNum') ?: '1').toString().toInteger()
+
 android {
     namespace 'com.xcluice.digitalwellbeing'
     compileSdk 34
@@ -10,8 +12,8 @@ android {
         applicationId 'com.xcluice.digitalwellbeing'
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName '1.0'
+        versionCode bn
+        versionName "1.0.${bn}"
     }
 
     signingConfigs {

@@ -64,7 +64,7 @@ public class BlockActivity extends Activity {
         close.setTextSize(15);
         close.setGravity(Gravity.CENTER);
         GradientDrawable g = new GradientDrawable();
-        g.setColor(0xFF8AB4F8);
+        g.setColor(Usage.accent(this));
         g.setCornerRadius(24 * d);
         close.setBackground(g);
         close.setPadding((int) (40 * d), (int) (13 * d), (int) (40 * d), (int) (13 * d));
@@ -77,7 +77,7 @@ public class BlockActivity extends Activity {
 
         TextView ign = new TextView(this);
         ign.setText("Ignore timer for today");
-        ign.setTextColor(0xFF8AB4F8);
+        ign.setTextColor(Usage.accent(this));
         ign.setTextSize(14);
         ign.setPadding((int) (20 * d), (int) (16 * d), (int) (20 * d), (int) (16 * d));
         ign.setOnClickListener(new View.OnClickListener() {

@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
@@ -24,11 +25,19 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
+import android.widget.SeekBar;
 import android.widget.PopupMenu;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -68,6 +77,11 @@ public class MainActivity extends Activity {
     private TextView totalTv, subTv, dateTv;
     private ImageView prevBtn, nextBtn;
     private ChartView chart;
+    private ImageView more;
+    private TextView banner;
+    private String updUrl;
+    private int updBuild;
+    private long lastCheck;
     private int taps;
     private long lastTap;
 
@@ -100,28 +114,31 @@ public class MainActivity extends Activity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(C_BG);
 
-        // ---- Header
-        LinearLayout head = new LinearLayout(this);
-        head.setOrientation(LinearLayout.HORIZONTAL);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        head.setBackgroundColor(C_BAR);
-        head.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(56)));
-        ImageView back = icon(R.drawable.ic_back, 56, 16);
-        back.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { finish(); }
+        // ---- Top row: update banner + menu (no title bar)
+        LinearLayout top = new LinearLayout(this);
+        top.setOrientation(LinearLayout.HORIZONTAL);
+        top.setGravity(Gravity.CENTER_VERTICAL);
+        top.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(52)));
+        banner = tv("Update available  \u00b7  tap to get it", 13, Usage.accent(this));
+        banner.setPadding(dp(14), dp(7), dp(14), dp(7));
+        GradientDrawable bbg = new GradientDrawable();
+        bbg.setCornerRadius(dp(18));
+        bbg.setStroke(dp(1), 0xFF3F5A7A);
+        banner.setBackground(bbg);
+        banner.setVisibility(View.GONE);
+        banner.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showUpdateDialog(); }
         });
-        head.addView(back);
-        TextView title = tv("Dashboard", 20, Color.WHITE);
-        LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(0, -2, 1f);
-        tp.leftMargin = dp(2);
-        title.setLayoutParams(tp);
-        head.addView(title);
-        final ImageView more = icon(R.drawable.ic_more, 56, 16);
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(-2, -2);
+        blp.leftMargin = dp(16);
+        top.addView(banner, blp);
+        top.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
+        more = icon(R.drawable.ic_more, 52, 14);
         more.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { showMenu(more); }
         });
-        head.addView(more);
-        root.addView(head);
+        top.addView(more);
+        root.addView(top);
 
         ScrollView sv = new ScrollView(this);
         sv.setLayoutParams(new LinearLayout.LayoutParams(-1, 0, 1f));
@@ -222,43 +239,24 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         load();
+        if (System.currentTimeMillis() - lastCheck > 30 * 60 * 1000L) checkUpdate(false);
     }
 
     private void showMenu(View anchor) {
         PopupMenu m = new PopupMenu(this, anchor);
         m.getMenu().add(0, 1, 0, "Refresh");
-        m.getMenu().add(0, 3, 1, "Debug info");
+        m.getMenu().add(0, 2, 1, "Colour options");
+        m.getMenu().add(0, 3, 2, "Check for updates");
         m.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override public boolean onMenuItemClick(android.view.MenuItem it) {
-                if (it.getItemId() == 3) { showDebug(); return true; }
+                if (it.getItemId() == 2) { showColors(); return true; }
+                if (it.getItemId() == 3) { checkUpdate(true); return true; }
                 loadedWeek = -1;
                 load();
                 return true;
             }
         });
         m.show();
-    }
-
-    private void showDebug() {
-        new Thread(new Runnable() {
-            @Override public void run() {
-                String t;
-                try { t = Usage.debug(MainActivity.this); } catch (Exception e) { t = "error: " + e; }
-                final String text = t;
-                ui.post(new Runnable() {
-                    @Override public void run() {
-                        TextView tvv = tv(text, 11, Color.WHITE);
-                        tvv.setTypeface(android.graphics.Typeface.MONOSPACE);
-                        tvv.setTextIsSelectable(true);
-                        tvv.setPadding(dp(16), dp(8), dp(16), dp(8));
-                        ScrollView sv2 = new ScrollView(MainActivity.this);
-                        sv2.addView(tvv);
-                        new AlertDialog.Builder(MainActivity.this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                                .setTitle("Debug info").setView(sv2).setPositiveButton("Close", null).show();
-                    }
-                });
-            }
-        }).start();
     }
 
     private void openAccessSettings() {
@@ -347,6 +345,7 @@ public class MainActivity extends Activity {
     }
 
     private void render() {
+        applyAccent();
         Set<String> hid = Usage.hidden(this);
         long[] totals = new long[7];
         List<Item> items = new ArrayList<>();
@@ -401,6 +400,7 @@ public class MainActivity extends Activity {
             }
             if (rest > 0) { segV[i][n] = rest; segC[i][n] = 0xFF5F6368; }
         }
+        chart.setThresholds(Usage.thLow(this), Usage.thHigh(this));
         chart.set(totals, segV, segC, fut, idx, new ChartView.Listener() {
             @Override public void onDay(int i) {
                 Calendar c = Usage.weekStart(sel);
@@ -473,7 +473,7 @@ public class MainActivity extends Activity {
 
         ImageView act = new ImageView(this);
         act.setImageResource(m.sys ? R.drawable.ic_info : R.drawable.ic_hourglass);
-        act.setColorFilter(Color.WHITE);
+        act.setColorFilter(Usage.accent(this));
         act.setPadding(dp(20), dp(20), dp(20), dp(20));
         r.addView(act, new LinearLayout.LayoutParams(dp(64), dp(64)));
 
@@ -493,6 +493,247 @@ public class MainActivity extends Activity {
         try {
             startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + pkg)));
         } catch (Exception ignored) {}
+    }
+
+    private void applyAccent() {
+        int a = Usage.accent(this);
+        more.setColorFilter(a);
+        prevBtn.setColorFilter(a);
+        nextBtn.setColorFilter(a);
+        totalTv.setTextColor(a);
+        banner.setTextColor(a);
+    }
+
+    // ---- Colour options
+    private void showColors() {
+        final int[] acc = {Usage.accent(this)};
+        final int[] low = {Usage.thLow(this)};
+        final int[] high = {Usage.thHigh(this)};
+        final int[] cols = {0xFF8AB4F8, 0xFF81C995, 0xFF78D9EC, 0xFFFDD663, 0xFFFFAD70,
+                0xFFF28B82, 0xFFFF8BCB, 0xFFC58AF9, 0xFF3DDBC1, 0xFFFFFFFF};
+        final List<View> sw = new ArrayList<>();
+        final Runnable[] restyle = new Runnable[1];
+        restyle[0] = new Runnable() {
+            @Override public void run() {
+                for (int i = 0; i < sw.size(); i++) {
+                    GradientDrawable g = new GradientDrawable();
+                    g.setShape(GradientDrawable.OVAL);
+                    g.setColor(cols[i]);
+                    if (cols[i] == acc[0]) g.setStroke(dp(3), 0xFF202124 == 0 ? 0 : 0xFFFFFFFF);
+                    else g.setStroke(dp(1), 0x55FFFFFF);
+                    sw.get(i).setBackground(g);
+                }
+            }
+        };
+
+        LinearLayout l = new LinearLayout(this);
+        l.setOrientation(LinearLayout.VERTICAL);
+        l.setPadding(dp(22), dp(12), dp(22), dp(8));
+        l.addView(tv("Accent colour", 14, C_SUB));
+        for (int row = 0; row < 2; row++) {
+            LinearLayout r = new LinearLayout(this);
+            r.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-2, -2);
+            rp.topMargin = dp(10);
+            for (int k = 0; k < 5; k++) {
+                final int ci = row * 5 + k;
+                View v = new View(this);
+                LinearLayout.LayoutParams vp = new LinearLayout.LayoutParams(dp(38), dp(38));
+                vp.rightMargin = dp(10);
+                v.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View x) { acc[0] = cols[ci]; restyle[0].run(); }
+                });
+                sw.add(v);
+                r.addView(v, vp);
+            }
+            l.addView(r, rp);
+        }
+        restyle[0].run();
+
+        TextView ct = tv("Chart colours", 14, C_SUB);
+        LinearLayout.LayoutParams ctp = new LinearLayout.LayoutParams(-2, -2);
+        ctp.topMargin = dp(26);
+        l.addView(ct, ctp);
+
+        final View strip = new View(this) {
+            final Paint p = new Paint();
+            @Override protected void onDraw(Canvas c) {
+                int w = getWidth();
+                for (int x = 0; x < w; x += 3) {
+                    p.setColor(ChartView.barColor(12f * x / w, low[0], high[0], 255));
+                    c.drawRect(x, 0, Math.min(x + 3, w), getHeight(), p);
+                }
+            }
+        };
+        LinearLayout.LayoutParams stp = new LinearLayout.LayoutParams(-1, dp(14));
+        stp.topMargin = dp(12);
+        l.addView(strip, stp);
+        LinearLayout ends = new LinearLayout(this);
+        ends.setOrientation(LinearLayout.HORIZONTAL);
+        TextView e0 = tv("0h", 11, C_SUB);
+        ends.addView(e0, new LinearLayout.LayoutParams(0, -2, 1f));
+        ends.addView(tv("12h", 11, C_SUB));
+        LinearLayout.LayoutParams enp = new LinearLayout.LayoutParams(-1, -2);
+        enp.topMargin = dp(4);
+        l.addView(ends, enp);
+
+        final TextView lowTv = tv("", 14, Color.WHITE);
+        final TextView highTv = tv("", 14, Color.WHITE);
+        final SeekBar lowBar = new SeekBar(this);
+        lowBar.setMax(11);
+        lowBar.setProgress(low[0]);
+        final SeekBar highBar = new SeekBar(this);
+        highBar.setMax(11);
+        highBar.setProgress(high[0] - 1);
+        final boolean[] busy = {false};
+        final Runnable labels = new Runnable() {
+            @Override public void run() {
+                lowTv.setText("Green up to " + low[0] + " h");
+                highTv.setText("Red from " + high[0] + " h");
+                strip.invalidate();
+            }
+        };
+        labels.run();
+        lowBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int p, boolean user) {
+                if (busy[0]) return;
+                busy[0] = true;
+                low[0] = p;
+                if (high[0] <= low[0]) { high[0] = low[0] + 1; highBar.setProgress(high[0] - 1); }
+                busy[0] = false;
+                labels.run();
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+        highBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar sb, int p, boolean user) {
+                if (busy[0]) return;
+                busy[0] = true;
+                high[0] = p + 1;
+                if (low[0] >= high[0]) { low[0] = high[0] - 1; lowBar.setProgress(low[0]); }
+                busy[0] = false;
+                labels.run();
+            }
+            @Override public void onStartTrackingTouch(SeekBar sb) {}
+            @Override public void onStopTrackingTouch(SeekBar sb) {}
+        });
+        LinearLayout.LayoutParams t1 = new LinearLayout.LayoutParams(-2, -2);
+        t1.topMargin = dp(18);
+        l.addView(lowTv, t1);
+        l.addView(lowBar, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout.LayoutParams t2 = new LinearLayout.LayoutParams(-2, -2);
+        t2.topMargin = dp(10);
+        l.addView(highTv, t2);
+        l.addView(highBar, new LinearLayout.LayoutParams(-1, -2));
+
+        ScrollView sv2 = new ScrollView(this);
+        sv2.addView(l);
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Colour options")
+                .setView(sv2)
+                .setPositiveButton("Save", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d2, int w) {
+                        Usage.setColors(MainActivity.this, acc[0], low[0], high[0]);
+                        render();
+                        new Thread(new Runnable() {
+                            @Override public void run() { DWWidget.refreshAll(MainActivity.this); }
+                        }).start();
+                    }
+                })
+                .setNeutralButton("Reset", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d2, int w) {
+                        Usage.setColors(MainActivity.this, 0xFF8AB4F8, 1, 6);
+                        render();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    // ---- Update check (looks at the GitHub releases of this app)
+    private void checkUpdate(final boolean manual) {
+        lastCheck = System.currentTimeMillis();
+        new Thread(new Runnable() {
+            @Override public void run() {
+                try {
+                    HttpURLConnection c = (HttpURLConnection) new URL(
+                            "https://api.github.com/repos/Xcluice/DigitalWellbeing/releases?per_page=20").openConnection();
+                    c.setConnectTimeout(8000);
+                    c.setReadTimeout(8000);
+                    c.setRequestProperty("Accept", "application/vnd.github+json");
+                    c.setRequestProperty("User-Agent", "DigitalWellbeing");
+                    InputStream in = c.getInputStream();
+                    ByteArrayOutputStream bo = new ByteArrayOutputStream();
+                    byte[] buf = new byte[4096];
+                    int n;
+                    while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
+                    in.close();
+                    JSONArray arr = new JSONArray(bo.toString("UTF-8"));
+                    int best = -1;
+                    String url = null;
+                    for (int i = 0; i < arr.length(); i++) {
+                        JSONObject r = arr.getJSONObject(i);
+                        String tag = r.optString("tag_name");
+                        if (!tag.startsWith("build-")) continue;
+                        int num;
+                        try { num = Integer.parseInt(tag.substring(6)); } catch (Exception e) { continue; }
+                        if (num <= best) continue;
+                        JSONArray as = r.optJSONArray("assets");
+                        String u = null;
+                        if (as != null) {
+                            for (int j = 0; j < as.length(); j++) {
+                                JSONObject a = as.getJSONObject(j);
+                                if (a.optString("name").endsWith(".apk")) u = a.optString("browser_download_url");
+                            }
+                        }
+                        if (u != null) { best = num; url = u; }
+                    }
+                    final int fb = best;
+                    final String fu = url;
+                    @SuppressWarnings("deprecation")
+                    final int cur = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                    ui.post(new Runnable() {
+                        @Override public void run() {
+                            if (fu != null && fb > cur) {
+                                updUrl = fu;
+                                updBuild = fb;
+                                banner.setVisibility(View.VISIBLE);
+                                android.content.SharedPreferences sp = getSharedPreferences("dw_prefs", MODE_PRIVATE);
+                                if (manual || sp.getInt("upd_seen", 0) != fb) {
+                                    sp.edit().putInt("upd_seen", fb).apply();
+                                    showUpdateDialog();
+                                }
+                            } else {
+                                banner.setVisibility(View.GONE);
+                                if (manual) Toast.makeText(MainActivity.this, "You're up to date", Toast.LENGTH_SHORT).show();
+                            }
+                        }
+                    });
+                } catch (Exception e) {
+                    if (manual) ui.post(new Runnable() {
+                        @Override public void run() {
+                            Toast.makeText(MainActivity.this, "Couldn't check for updates", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
+    private void showUpdateDialog() {
+        if (updUrl == null) return;
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Update available")
+                .setMessage("A new version of Digital Wellbeing (build " + updBuild
+                        + ") is ready. Download it and tap the file to install over this one.")
+                .setPositiveButton("Download", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d2, int w) {
+                        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(updUrl))); } catch (Exception ignored) {}
+                    }
+                })
+                .setNegativeButton("Later", null)
+                .show();
     }
 
     // ---- App timers

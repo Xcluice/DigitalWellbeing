@@ -26,6 +26,7 @@ public class ChartView extends View {
     private boolean[] future = new boolean[7];
     private int selected;
     private Listener listener;
+    private int lowH = 1, highH = 6;
 
     public ChartView(Context c) {
         super(c);
@@ -39,6 +40,14 @@ public class ChartView extends View {
         day.setTextAlign(Paint.Align.CENTER);
         gap.setColor(0xFF1F1F1F);
         gap.setStrokeWidth(1.5f * d);
+    }
+
+    void setThresholds(int low, int high) { lowH = low; highH = high; }
+
+    /** green up to lowH hours, red from highH hours, blends through yellow in between. */
+    static int barColor(float hrs, int low, int high, int alpha) {
+        float t = hrs <= low ? 0f : (hrs >= high ? 1f : (hrs - low) / (float) (high - low));
+        return android.graphics.Color.HSVToColor(alpha, new float[]{120f * (1f - t), 0.72f, 0.96f});
     }
 
     void set(long[] t, long[][] sv, int[][] sc, boolean[] f, int sel, Listener l) {
@@ -78,8 +87,7 @@ public class ChartView extends View {
             int alpha = i == selected ? 255 : 150;
             // one colour per bar: green (light use) -> yellow -> red (6h+)
             float hrs = (float) (totals[i] / 3600000.0);
-            float hue = 120f * (1f - Math.min(hrs / 6f, 1f));
-            bar.setColor(android.graphics.Color.HSVToColor(alpha, new float[]{hue, 0.72f, 0.96f}));
+            bar.setColor(barColor(hrs, lowH, highH, alpha));
             c.save();
             c.clipRect(0, 0, getWidth(), base);
             rf.set(cx - bw / 2, base - h, cx + bw / 2, base + r);

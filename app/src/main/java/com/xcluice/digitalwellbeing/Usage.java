@@ -207,6 +207,24 @@ final class Usage {
         return sb.toString();
     }
 
+    // ---- Colour options
+    static int accent(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("acc", 0xFF8AB4F8);
+    }
+
+    static int thLow(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("th_low", 1);
+    }
+
+    static int thHigh(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("th_high", 6);
+    }
+
+    static void setColors(Context c, int accent, int low, int high) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putInt("acc", accent).putInt("th_low", low).putInt("th_high", high).apply();
+    }
+
     // ---- App timers
     static int limit(Context c, String pkg) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("lim_" + pkg, 0);
