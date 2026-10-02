@@ -227,14 +227,38 @@ public class MainActivity extends Activity {
     private void showMenu(View anchor) {
         PopupMenu m = new PopupMenu(this, anchor);
         m.getMenu().add(0, 1, 0, "Refresh");
+        m.getMenu().add(0, 3, 1, "Debug info");
         m.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override public boolean onMenuItemClick(android.view.MenuItem it) {
+                if (it.getItemId() == 3) { showDebug(); return true; }
                 loadedWeek = -1;
                 load();
                 return true;
             }
         });
         m.show();
+    }
+
+    private void showDebug() {
+        new Thread(new Runnable() {
+            @Override public void run() {
+                String t;
+                try { t = Usage.debug(MainActivity.this); } catch (Exception e) { t = "error: " + e; }
+                final String text = t;
+                ui.post(new Runnable() {
+                    @Override public void run() {
+                        TextView tvv = tv(text, 11, Color.WHITE);
+                        tvv.setTypeface(android.graphics.Typeface.MONOSPACE);
+                        tvv.setTextIsSelectable(true);
+                        tvv.setPadding(dp(16), dp(8), dp(16), dp(8));
+                        ScrollView sv2 = new ScrollView(MainActivity.this);
+                        sv2.addView(tvv);
+                        new AlertDialog.Builder(MainActivity.this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                                .setTitle("Debug info").setView(sv2).setPositiveButton("Close", null).show();
+                    }
+                });
+            }
+        }).start();
     }
 
     private void openAccessSettings() {
