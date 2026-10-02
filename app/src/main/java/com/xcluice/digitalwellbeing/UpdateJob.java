@@ -4,7 +4,6 @@ import android.app.PendingIntent;
 import android.app.job.JobParameters;
 import android.app.job.JobService;
 import android.content.Intent;
-import android.net.Uri;
 
 public class UpdateJob extends JobService {
     @Override
@@ -18,10 +17,11 @@ public class UpdateJob extends JobService {
                     android.content.SharedPreferences sp = getSharedPreferences("dw_prefs", MODE_PRIVATE);
                     if (sp.getInt("upd_notified", 0) >= i.build) return;
                     PendingIntent pi = PendingIntent.getActivity(UpdateJob.this, 3,
-                            new Intent(Intent.ACTION_VIEW, Uri.parse(i.url)),
+                            new Intent(UpdateJob.this, MainActivity.class).putExtra("update", true)
+                                    .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP | Intent.FLAG_ACTIVITY_CLEAR_TOP),
                             PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
                     Notifs.post(UpdateJob.this, 11, Notifs.CH_UPD, "Digital Wellbeing update",
-                            "Build " + i.build + " is ready. Tap to download, then open the file to install.", pi);
+                            "Build " + i.build + " is ready. Tap to update inside the app.", pi);
                     sp.edit().putInt("upd_notified", i.build).apply();
                 } catch (Exception ignored) {
                 } finally {

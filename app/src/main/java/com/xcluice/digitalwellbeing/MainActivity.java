@@ -3,7 +3,9 @@ package com.xcluice.digitalwellbeing;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.app.PendingIntent;
 import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageInstaller;
 import android.content.pm.PackageManager;
 import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
@@ -39,6 +41,7 @@ import org.json.JSONObject;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.text.SimpleDateFormat;
@@ -83,6 +86,10 @@ public class MainActivity extends Activity {
     private ImageView more;
     private LinearLayout checking;
     private ProgressBar spinner;
+    private AlertDialog dlDialog;
+    private ProgressBar dlBar;
+    private TextView dlText;
+    private volatile boolean cancelDl;
     private TextView banner;
     private String updUrl;
     private int updBuild;
@@ -265,7 +272,18 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         load();
-        if (System.currentTimeMillis() - lastCheck > 30 * 60 * 1000L) checkUpdate(false);
+        if (getIntent().getBooleanExtra("update", false)) {
+            getIntent().removeExtra("update");
+            checkUpdate(true);
+        } else if (System.currentTimeMillis() - lastCheck > 30 * 60 * 1000L) {
+            checkUpdate(false);
+        }
+    }
+
+    @Override
+    protected void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        setIntent(i);
     }
 
     private void showMenu(View anchor) {
@@ -744,6 +762,114 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    // ---- In-app download + install
+    private void installUpdate() {
+        final String url = updUrl;
+        if (url == null) return;
+        if (!getPackageManager().canRequestPackageInstalls()) {
+            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("Allow installing updates")
+                    .setMessage("Android needs your OK once. Turn on \"Allow from this source\", then come back and tap Update now again.")
+                    .setPositiveButton("Open settings", new android.content.DialogInterface.OnClickListener() {
+                        @Override public void onClick(android.content.DialogInterface d2, int w) {
+                            try {
+                                startActivity(new Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                                        Uri.parse("package:" + getPackageName())));
+                            } catch (Exception ignored) {}
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+            return;
+        }
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(24), dp(16), dp(24), dp(8));
+        dlText = tv("Downloading update\u2026", 14, Color.WHITE);
+        box.addView(dlText);
+        dlBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
+        dlBar.setMax(100);
+        dlBar.setIndeterminate(true);
+        dlBar.setProgressTintList(ColorStateList.valueOf(Usage.accent(this)));
+        dlBar.setIndeterminateTintList(ColorStateList.valueOf(Usage.accent(this)));
+        LinearLayout.LayoutParams bp2 = new LinearLayout.LayoutParams(-1, -2);
+        bp2.topMargin = dp(16);
+        box.addView(dlBar, bp2);
+        cancelDl = false;
+        dlDialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Updating")
+                .setView(box)
+                .setCancelable(false)
+                .setNegativeButton("Cancel", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d2, int w) { cancelDl = true; }
+                })
+                .show();
+        new Thread(new Runnable() {
+            @Override public void run() {
+                PackageInstaller.Session session = null;
+                try {
+                    PackageInstaller inst = getPackageManager().getPackageInstaller();
+                    PackageInstaller.SessionParams sp = new PackageInstaller.SessionParams(
+                            PackageInstaller.SessionParams.MODE_FULL_INSTALL);
+                    sp.setAppPackageName(getPackageName());
+                    int id = inst.createSession(sp);
+                    session = inst.openSession(id);
+                    HttpURLConnection c = (HttpURLConnection) new URL(url).openConnection();
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    c.setInstanceFollowRedirects(true);
+                    final long len = c.getContentLengthLong();
+                    InputStream in = c.getInputStream();
+                    OutputStream out = session.openWrite("update.apk", 0, len > 0 ? len : -1);
+                    byte[] buf = new byte[32768];
+                    long done = 0;
+                    int n, last = -1;
+                    while ((n = in.read(buf)) > 0) {
+                        if (cancelDl) throw new Exception("cancelled");
+                        out.write(buf, 0, n);
+                        done += n;
+                        if (len > 0) {
+                            final int pct = (int) (done * 100 / len);
+                            if (pct != last) {
+                                last = pct;
+                                ui.post(new Runnable() {
+                                    @Override public void run() {
+                                        dlBar.setIndeterminate(false);
+                                        dlBar.setProgress(pct);
+                                        dlText.setText("Downloading update\u2026 " + pct + "%");
+                                    }
+                                });
+                            }
+                        }
+                    }
+                    session.fsync(out);
+                    out.close();
+                    in.close();
+                    ui.post(new Runnable() {
+                        @Override public void run() { dlText.setText("Installing\u2026"); }
+                    });
+                    PendingIntent pi = PendingIntent.getBroadcast(MainActivity.this, id,
+                            new Intent(MainActivity.this, InstallReceiver.class),
+                            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_MUTABLE);
+                    session.commit(pi.getIntentSender());
+                    session.close();
+                    ui.post(new Runnable() {
+                        @Override public void run() { if (dlDialog != null) dlDialog.dismiss(); }
+                    });
+                } catch (final Exception e) {
+                    try { if (session != null) session.abandon(); } catch (Exception ignored) {}
+                    ui.post(new Runnable() {
+                        @Override public void run() {
+                            if (dlDialog != null) dlDialog.dismiss();
+                            if (!cancelDl) Toast.makeText(MainActivity.this,
+                                    "Update failed. Check your internet and try again.", Toast.LENGTH_LONG).show();
+                        }
+                    });
+                }
+            }
+        }).start();
+    }
+
     /** Keeps the spinner visible for a moment so a fast check doesn't just blink. */
     private void after(long t0, boolean manual, final Runnable r) {
         long wait = manual ? Math.max(0, 900 - (System.currentTimeMillis() - t0)) : 0;
@@ -760,10 +886,10 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle("Update available")
                 .setMessage("A new version of Digital Wellbeing (build " + updBuild
-                        + ") is ready. Download it and tap the file to install over this one.")
-                .setPositiveButton("Download", new android.content.DialogInterface.OnClickListener() {
+                        + ") is ready. It downloads right here and installs over this one.")
+                .setPositiveButton("Update now", new android.content.DialogInterface.OnClickListener() {
                     @Override public void onClick(android.content.DialogInterface d2, int w) {
-                        try { startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(updUrl))); } catch (Exception ignored) {}
+                        installUpdate();
                     }
                 })
                 .setNegativeButton("Later", null)
