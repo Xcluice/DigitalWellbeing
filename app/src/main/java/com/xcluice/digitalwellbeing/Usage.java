@@ -128,16 +128,25 @@ final class Usage {
         }
     }
 
-    static long todayTotal(Context c) {
+    /** package -> foreground ms today, excluding hidden apps. */
+    static Map<String, Long> today(Context c) {
         Calendar now = Calendar.getInstance();
         int idx = now.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY;
         Map<String, long[]> m = week(c, weekStart(now).getTimeInMillis());
         Set<String> h = hidden(c);
-        long t = 0;
+        Map<String, Long> out = new HashMap<>();
         for (Map.Entry<String, long[]> en : m.entrySet()) {
-            if (!h.contains(en.getKey())) t += en.getValue()[idx];
+            if (!h.contains(en.getKey()) && en.getValue()[idx] > 0) out.put(en.getKey(), en.getValue()[idx]);
         }
-        return t;
+        return out;
+    }
+
+    static String fmtShort(long ms) {
+        long m = ms / 60000, h = m / 60;
+        m %= 60;
+        if (h > 0 && m > 0) return h + "h " + m + "m";
+        if (h > 0) return h + "h";
+        return m + "m";
     }
 
     static String fmtTotal(long ms) {
