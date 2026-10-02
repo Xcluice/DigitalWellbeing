@@ -5,6 +5,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -28,6 +29,7 @@ import android.widget.LinearLayout;
 import android.widget.NumberPicker;
 import android.widget.SeekBar;
 import android.widget.PopupMenu;
+import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -79,6 +81,8 @@ public class MainActivity extends Activity {
     private ImageView prevBtn, nextBtn;
     private ChartView chart;
     private ImageView more;
+    private LinearLayout checking;
+    private ProgressBar spinner;
     private TextView banner;
     private String updUrl;
     private int updBuild;
@@ -120,6 +124,21 @@ public class MainActivity extends Activity {
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
         top.setLayoutParams(new LinearLayout.LayoutParams(-1, dp(52)));
+        checking = new LinearLayout(this);
+        checking.setOrientation(LinearLayout.HORIZONTAL);
+        checking.setGravity(Gravity.CENTER_VERTICAL);
+        spinner = new ProgressBar(this);
+        spinner.setIndeterminate(true);
+        spinner.setIndeterminateTintList(ColorStateList.valueOf(Usage.accent(this)));
+        checking.addView(spinner, new LinearLayout.LayoutParams(dp(22), dp(22)));
+        TextView ckt = tv("Checking for updates\u2026", 13, C_SUB);
+        LinearLayout.LayoutParams ckp = new LinearLayout.LayoutParams(-2, -2);
+        ckp.leftMargin = dp(10);
+        checking.addView(ckt, ckp);
+        checking.setVisibility(View.GONE);
+        LinearLayout.LayoutParams cklp = new LinearLayout.LayoutParams(-2, -2);
+        cklp.leftMargin = dp(18);
+        top.addView(checking, cklp);
         banner = tv("Update available  \u00b7  tap to get it", 13, Usage.accent(this));
         banner.setPadding(dp(14), dp(7), dp(14), dp(7));
         GradientDrawable bbg = new GradientDrawable();
@@ -511,6 +530,7 @@ public class MainActivity extends Activity {
         nextBtn.setColorFilter(a);
         totalTv.setTextColor(a);
         banner.setTextColor(a);
+        spinner.setIndeterminateTintList(ColorStateList.valueOf(a));
     }
 
     private void showNotifSettings() {
@@ -687,13 +707,15 @@ public class MainActivity extends Activity {
     // ---- Update check (looks at the GitHub releases of this app)
     private void checkUpdate(final boolean manual) {
         lastCheck = System.currentTimeMillis();
+        final long t0 = lastCheck;
+        if (manual) checking.setVisibility(View.VISIBLE);
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
                     final Updater.Info info = Updater.fetch();
                     if (info == null) throw new Exception("no release");
                     final int cur = Updater.installed(MainActivity.this);
-                    ui.post(new Runnable() {
+                    after(t0, manual, new Runnable() {
                         @Override public void run() {
                             if (info.build > cur) {
                                 updUrl = info.url;
@@ -712,7 +734,7 @@ public class MainActivity extends Activity {
                         }
                     });
                 } catch (Exception e) {
-                    if (manual) ui.post(new Runnable() {
+                    if (manual) after(t0, true, new Runnable() {
                         @Override public void run() {
                             Toast.makeText(MainActivity.this, "Couldn't check for updates", Toast.LENGTH_SHORT).show();
                         }
@@ -720,6 +742,17 @@ public class MainActivity extends Activity {
                 }
             }
         }).start();
+    }
+
+    /** Keeps the spinner visible for a moment so a fast check doesn't just blink. */
+    private void after(long t0, boolean manual, final Runnable r) {
+        long wait = manual ? Math.max(0, 900 - (System.currentTimeMillis() - t0)) : 0;
+        ui.postDelayed(new Runnable() {
+            @Override public void run() {
+                checking.setVisibility(View.GONE);
+                r.run();
+            }
+        }, wait);
     }
 
     private void showUpdateDialog() {
