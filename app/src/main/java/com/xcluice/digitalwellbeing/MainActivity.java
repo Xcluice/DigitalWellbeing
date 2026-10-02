@@ -690,56 +690,24 @@ public class MainActivity extends Activity {
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
-                    HttpURLConnection c = (HttpURLConnection) new URL(
-                            "https://api.github.com/repos/Xcluice/DigitalWellbeing/releases?per_page=20").openConnection();
-                    c.setConnectTimeout(8000);
-                    c.setReadTimeout(8000);
-                    c.setRequestProperty("Accept", "application/vnd.github+json");
-                    c.setRequestProperty("User-Agent", "DigitalWellbeing");
-                    InputStream in = c.getInputStream();
-                    ByteArrayOutputStream bo = new ByteArrayOutputStream();
-                    byte[] buf = new byte[4096];
-                    int n;
-                    while ((n = in.read(buf)) > 0) bo.write(buf, 0, n);
-                    in.close();
-                    JSONArray arr = new JSONArray(bo.toString("UTF-8"));
-                    int best = -1;
-                    String url = null;
-                    for (int i = 0; i < arr.length(); i++) {
-                        JSONObject r = arr.getJSONObject(i);
-                        String tag = r.optString("tag_name");
-                        if (!tag.startsWith("build-")) continue;
-                        int num;
-                        try { num = Integer.parseInt(tag.substring(6)); } catch (Exception e) { continue; }
-                        if (num <= best) continue;
-                        JSONArray as = r.optJSONArray("assets");
-                        String u = null;
-                        if (as != null) {
-                            for (int j = 0; j < as.length(); j++) {
-                                JSONObject a = as.getJSONObject(j);
-                                if (a.optString("name").endsWith(".apk")) u = a.optString("browser_download_url");
-                            }
-                        }
-                        if (u != null) { best = num; url = u; }
-                    }
-                    final int fb = best;
-                    final String fu = url;
-                    @SuppressWarnings("deprecation")
-                    final int cur = getPackageManager().getPackageInfo(getPackageName(), 0).versionCode;
+                    final Updater.Info info = Updater.fetch();
+                    if (info == null) throw new Exception("no release");
+                    final int cur = Updater.installed(MainActivity.this);
                     ui.post(new Runnable() {
                         @Override public void run() {
-                            if (fu != null && fb > cur) {
-                                updUrl = fu;
-                                updBuild = fb;
+                            if (info.build > cur) {
+                                updUrl = info.url;
+                                updBuild = info.build;
                                 banner.setVisibility(View.VISIBLE);
                                 android.content.SharedPreferences sp = getSharedPreferences("dw_prefs", MODE_PRIVATE);
-                                if (manual || sp.getInt("upd_seen", 0) != fb) {
-                                    sp.edit().putInt("upd_seen", fb).apply();
+                                if (manual || sp.getInt("upd_seen", 0) != info.build) {
+                                    sp.edit().putInt("upd_seen", info.build).apply();
                                     showUpdateDialog();
                                 }
                             } else {
                                 banner.setVisibility(View.GONE);
-                                if (manual) Toast.makeText(MainActivity.this, "You're up to date", Toast.LENGTH_SHORT).show();
+                                if (manual) Toast.makeText(MainActivity.this,
+                                        "You're up to date (build " + cur + ")", Toast.LENGTH_SHORT).show();
                             }
                         }
                     });
