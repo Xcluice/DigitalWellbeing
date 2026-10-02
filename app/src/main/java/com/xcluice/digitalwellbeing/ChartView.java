@@ -76,23 +76,14 @@ public class ChartView extends View {
             float h = (float) (totals[i] / 3600000.0 / topH) * grid;
             if (h < 3 * d) h = 3 * d;
             int alpha = i == selected ? 255 : 150;
+            // one colour per bar: green (light use) -> yellow -> red (6h+)
+            float hrs = (float) (totals[i] / 3600000.0);
+            float hue = 120f * (1f - Math.min(hrs / 6f, 1f));
+            bar.setColor(android.graphics.Color.HSVToColor(alpha, new float[]{hue, 0.72f, 0.96f}));
             c.save();
-            clip.reset();
+            c.clipRect(0, 0, getWidth(), base);
             rf.set(cx - bw / 2, base - h, cx + bw / 2, base + r);
-            clip.addRoundRect(rf, r, r, Path.Direction.CW);
-            c.clipPath(clip);
-            float y = base;
-            long sum = 0;
-            for (long v : segV[i]) sum += v;
-            if (sum <= 0) sum = 1;
-            for (int k = 0; k < segV[i].length; k++) {
-                float sh = h * segV[i][k] / sum;
-                bar.setColor(segC[i][k]);
-                bar.setAlpha(alpha);
-                c.drawRect(cx - bw / 2, y - sh, cx + bw / 2, y, bar);
-                y -= sh;
-                if (k < segV[i].length - 1) c.drawLine(cx - bw / 2, y, cx + bw / 2, y, gap);
-            }
+            c.drawRoundRect(rf, r, r, bar);
             c.restore();
         }
     }
