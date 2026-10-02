@@ -197,17 +197,7 @@ public class MainActivity extends Activity {
         list.setOrientation(LinearLayout.VERTICAL);
         contentView.addView(list, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView sites = pill("Show sites you visit");
-        sites.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                Toast.makeText(MainActivity.this, "Not available", Toast.LENGTH_SHORT).show();
-            }
-        });
-        LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(-2, -2);
-        sp.gravity = Gravity.CENTER_HORIZONTAL;
-        sp.topMargin = dp(24);
-        sp.bottomMargin = dp(40);
-        contentView.addView(sites, sp);
+        contentView.addView(new View(this), new LinearLayout.LayoutParams(-1, dp(40)));
         holder.addView(contentView, new FrameLayout.LayoutParams(-1, -2));
 
         setContentView(root);
