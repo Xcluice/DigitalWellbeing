@@ -225,6 +225,19 @@ final class Usage {
                 .putInt("acc", accent).putInt("th_low", low).putInt("th_high", high).apply();
     }
 
+    // ---- Notification settings
+    static boolean notifUpd(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("n_upd", true);
+    }
+
+    static boolean notifSum(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("n_sum", true);
+    }
+
+    static void setNotifs(Context c, boolean upd, boolean sum) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putBoolean("n_upd", upd).putBoolean("n_sum", sum).apply();
+    }
+
     // ---- App timers
     static int limit(Context c, String pkg) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("lim_" + pkg, 0);

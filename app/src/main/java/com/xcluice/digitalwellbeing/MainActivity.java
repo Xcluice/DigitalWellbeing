@@ -12,6 +12,7 @@ import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -222,6 +223,12 @@ public class MainActivity extends Activity {
         holder.addView(contentView, new FrameLayout.LayoutParams(-1, -2));
 
         setContentView(root);
+
+        Notifs.scheduleAll(this);
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 7);
+        }
     }
 
     private TextView pill(String s) {
@@ -246,11 +253,13 @@ public class MainActivity extends Activity {
         PopupMenu m = new PopupMenu(this, anchor);
         m.getMenu().add(0, 1, 0, "Refresh");
         m.getMenu().add(0, 2, 1, "Colour options");
-        m.getMenu().add(0, 3, 2, "Check for updates");
+        m.getMenu().add(0, 4, 2, "Notifications");
+        m.getMenu().add(0, 3, 3, "Check for updates");
         m.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
             @Override public boolean onMenuItemClick(android.view.MenuItem it) {
                 if (it.getItemId() == 2) { showColors(); return true; }
                 if (it.getItemId() == 3) { checkUpdate(true); return true; }
+                if (it.getItemId() == 4) { showNotifSettings(); return true; }
                 loadedWeek = -1;
                 load();
                 return true;
@@ -502,6 +511,30 @@ public class MainActivity extends Activity {
         nextBtn.setColorFilter(a);
         totalTv.setTextColor(a);
         banner.setTextColor(a);
+    }
+
+    private void showNotifSettings() {
+        final boolean[] on = {Usage.notifUpd(this), Usage.notifSum(this)};
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Notifications")
+                .setMultiChoiceItems(new String[]{"Update alerts", "Daily summary (around 9 PM)"}, on,
+                        new android.content.DialogInterface.OnMultiChoiceClickListener() {
+                            @Override public void onClick(android.content.DialogInterface d2, int which, boolean checked) {
+                                on[which] = checked;
+                            }
+                        })
+                .setPositiveButton("Save", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d2, int w) {
+                        Usage.setNotifs(MainActivity.this, on[0], on[1]);
+                        Notifs.scheduleAll(MainActivity.this);
+                        if (Build.VERSION.SDK_INT >= 33 && (on[0] || on[1])
+                                && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
+                            requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 7);
+                        }
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     // ---- Colour options
