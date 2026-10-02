@@ -4,4 +4,10 @@
     <color name="widget_text">#FF1B1C1A</color>
     <color name="widget_sub">#FF444842</color>
     <color name="widget_icon_bg">#FFDDE5D8</color>
+    <color name="pill1_bg">#FF000000</color>
+    <color name="pill1_fg">#FFFFFFFF</color>
+    <color name="pill2_bg">#FF5F6368</color>
+    <color name="pill2_fg">#FFFFFFFF</color>
+    <color name="pill3_bg">#FFC4EEE4</color>
+    <color name="pill3_fg">#FF1B1C1A</color>
 </resources>
