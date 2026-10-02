@@ -64,17 +64,22 @@ final class Usage {
 
     /** package -> foreground ms for each of the 7 days (Sun..Sat) of the week starting at weekStartMs. */
     static Map<String, long[]> week(Context c, long weekStartMs) {
+        return range(c, weekStartMs, 7);
+    }
+
+    /** package -> foreground ms for each of n consecutive days starting at startMs (a midnight). */
+    static Map<String, long[]> range(Context c, long weekStartMs, int n) {
         Map<String, long[]> out = new HashMap<>();
         UsageStatsManager usm = (UsageStatsManager) c.getSystemService(Context.USAGE_STATS_SERVICE);
         long now = System.currentTimeMillis();
-        long[] b = new long[8];
+        long[] b = new long[n + 1];
         Calendar cal = Calendar.getInstance();
         cal.setTimeInMillis(weekStartMs);
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i <= n; i++) {
             b[i] = cal.getTimeInMillis();
             cal.add(Calendar.DAY_OF_YEAR, 1);
         }
-        long end = Math.min(now, b[7]);
+        long end = Math.min(now, b[n]);
         if (end <= b[0]) return out;
 
         Set<String> ok = launchable(c);
@@ -101,27 +106,27 @@ final class Usage {
                 s.remove(cls == null ? "" : cls);
                 if (s.isEmpty()) {
                     Long st = start.remove(pkg);
-                    if (st != null) add(out, ok, pkg, st, ts, b);
+                    if (st != null) add(out, ok, pkg, st, ts, b, n);
                 }
             } else if (t == 16 || t == 17) { // SCREEN_NON_INTERACTIVE / KEYGUARD_SHOWN
                 for (Map.Entry<String, Long> en : new HashMap<>(start).entrySet()) {
-                    add(out, ok, en.getKey(), en.getValue(), ts, b);
+                    add(out, ok, en.getKey(), en.getValue(), ts, b, n);
                 }
                 start.clear();
                 for (Set<String> s : open.values()) s.clear();
             }
         }
         for (Map.Entry<String, Long> en : start.entrySet()) {
-            add(out, ok, en.getKey(), en.getValue(), end, b);
+            add(out, ok, en.getKey(), en.getValue(), end, b, n);
         }
         return out;
     }
 
-    private static void add(Map<String, long[]> out, Set<String> ok, String pkg, long s, long e, long[] b) {
+    private static void add(Map<String, long[]> out, Set<String> ok, String pkg, long s, long e, long[] b, int n) {
         if (!ok.contains(pkg) || e <= s) return;
         long[] arr = out.get(pkg);
-        if (arr == null) { arr = new long[7]; out.put(pkg, arr); }
-        for (int i = 0; i < 7; i++) {
+        if (arr == null) { arr = new long[n]; out.put(pkg, arr); }
+        for (int i = 0; i < n; i++) {
             long lo = Math.max(s, b[i]);
             long hi = Math.min(e, b[i + 1]);
             if (hi > lo) arr[i] += hi - lo;
@@ -147,6 +152,27 @@ final class Usage {
         if (h > 0 && m > 0) return h + "h " + m + "m";
         if (h > 0) return h + "h";
         return m + "m";
+    }
+
+    // ---- App timers
+    static int limit(Context c, String pkg) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("lim_" + pkg, 0);
+    }
+
+    static void setLimit(Context c, String pkg, int minutes) {
+        SharedPreferences.Editor e = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit();
+        if (minutes <= 0) e.remove("lim_" + pkg); else e.putInt("lim_" + pkg, minutes);
+        e.apply();
+    }
+
+    static void ignoreToday(Context c, String pkg) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putLong("ign_" + pkg, midnight(Calendar.getInstance()).getTimeInMillis()).apply();
+    }
+
+    static boolean ignored(Context c, String pkg) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("ign_" + pkg, 0)
+                == midnight(Calendar.getInstance()).getTimeInMillis();
     }
 
     static String fmtTotal(long ms) {
