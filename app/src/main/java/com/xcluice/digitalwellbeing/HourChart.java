@@ -1,10 +1,13 @@
 package com.xcluice.digitalwellbeing;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.LinearInterpolator;
 
 /** 24 bars, one per hour, for a single app on a single day. */
 public class HourChart extends View {
@@ -17,6 +20,9 @@ public class HourChart extends View {
     private long[] hours = new long[24];
     private int color = 0xFF8AB4F8;
     private int peak = -1;
+    private float prog = 1f;
+    private ValueAnimator va;
+    private final DecelerateInterpolator decel = new DecelerateInterpolator(1.6f);
 
     public HourChart(Context c) {
         super(c);
@@ -36,7 +42,18 @@ public class HourChart extends View {
         peak = -1;
         long best = 0;
         for (int i = 0; i < 24; i++) if (h[i] > best) { best = h[i]; peak = i; }
-        invalidate();
+        if (va != null) va.cancel();
+        prog = 0f;
+        va = ValueAnimator.ofFloat(0f, 1f);
+        va.setDuration(650);
+        va.setInterpolator(new LinearInterpolator());
+        va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override public void onAnimationUpdate(ValueAnimator a) {
+                prog = (Float) a.getAnimatedValue();
+                invalidate();
+            }
+        });
+        va.start();
     }
 
     @Override
@@ -67,6 +84,10 @@ public class HourChart extends View {
             float h = (float) (hours[i] / 60000.0 / topMin) * grid;
             if (h > grid) h = grid;
             if (h < 3 * d) h = 3 * d;
+            float t = prog * 1.6f - i * 0.03f;
+            t = t < 0f ? 0f : (t > 1f ? 1f : t);
+            if (t <= 0f) continue;
+            h *= decel.getInterpolation(t);
             bar.setColor(color);
             bar.setAlpha(i == peak ? 255 : 170);
             c.save();

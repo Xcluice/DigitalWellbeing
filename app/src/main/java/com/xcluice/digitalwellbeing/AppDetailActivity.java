@@ -167,6 +167,12 @@ public class AppDetailActivity extends Activity {
         load();
     }
 
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(R.anim.fade_in, R.anim.slide_out_right);
+    }
+
     private ImageView arrow(int res) {
         ImageView i = new ImageView(this);
         i.setImageResource(res);

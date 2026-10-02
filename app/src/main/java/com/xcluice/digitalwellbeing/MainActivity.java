@@ -2,6 +2,7 @@ package com.xcluice.digitalwellbeing;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.app.PendingIntent;
 import android.content.pm.ApplicationInfo;
@@ -24,6 +25,7 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
+import android.view.animation.DecelerateInterpolator;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -86,6 +88,12 @@ public class MainActivity extends Activity {
     private ImageView more;
     private LinearLayout checking;
     private ProgressBar spinner;
+    private final DecelerateInterpolator decel = new DecelerateInterpolator(1.8f);
+    private ValueAnimator totalAnim;
+    private long shownTotal, lastKey = -1, lastWeekKey = -1;
+    private String lastTotalStr = "";
+    private int slideDir;
+    private volatile long lastLoad, lastWidget;
     private AlertDialog dlDialog;
     private ProgressBar dlBar;
     private TextView dlText;
@@ -124,7 +132,6 @@ public class MainActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(C_BG);
 
         // ---- Top row: update banner + menu (no title bar)
         LinearLayout top = new LinearLayout(this);
@@ -250,7 +257,9 @@ public class MainActivity extends Activity {
 
         setContentView(root);
 
-        Notifs.scheduleAll(this);
+        new Thread(new Runnable() {
+            @Override public void run() { Notifs.scheduleAll(MainActivity.this); }
+        }).start();
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission("android.permission.POST_NOTIFICATIONS") != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[]{"android.permission.POST_NOTIFICATIONS"}, 7);
@@ -340,6 +349,7 @@ public class MainActivity extends Activity {
             if (delta > 0 && Usage.weekStart(sel).getTimeInMillis() >= Usage.weekStart(t).getTimeInMillis()) return;
             n = t;
         }
+        slideDir = delta;
         sel = n;
         load();
     }
@@ -353,8 +363,9 @@ public class MainActivity extends Activity {
         permView.setVisibility(View.GONE);
         contentView.setVisibility(View.VISIBLE);
         final long ws = Usage.weekStart(sel).getTimeInMillis();
-        final boolean fresh = ws == loadedWeek && !isTodayWeek(ws);
-        if (fresh) { render(); return; }
+        final boolean sameWeek = ws == loadedWeek;
+        final boolean recent = sameWeek && System.currentTimeMillis() - lastLoad < 20000L;
+        if ((sameWeek && !isTodayWeek(ws)) || recent) { render(); return; }
         new Thread(new Runnable() {
             @Override public void run() {
                 final Map<String, long[]> data = Usage.week(MainActivity.this, ws);
@@ -364,10 +375,14 @@ public class MainActivity extends Activity {
                     @Override public void run() {
                         weekData = data;
                         loadedWeek = ws;
+                        lastLoad = System.currentTimeMillis();
                         render();
                     }
                 });
-                DWWidget.refreshAll(MainActivity.this);
+                if (System.currentTimeMillis() - lastWidget > 60000L) {
+                    lastWidget = System.currentTimeMillis();
+                    DWWidget.refreshAll(MainActivity.this);
+                }
             }
         }).start();
     }
@@ -424,35 +439,14 @@ public class MainActivity extends Activity {
             c.add(Calendar.DAY_OF_YEAR, i);
             fut[i] = c.getTimeInMillis() > todayStart;
         }
-        long[][] segV = new long[7][];
-        int[][] segC = new int[7][];
-        PackageManager pmc = getPackageManager();
-        for (int i = 0; i < 7; i++) {
-            List<Item> di = new ArrayList<>();
-            for (Map.Entry<String, long[]> en : weekData.entrySet()) {
-                if (hid.contains(en.getKey()) || en.getValue()[i] <= 0) continue;
-                Item x = new Item();
-                x.pkg = en.getKey();
-                x.ms = en.getValue()[i];
-                di.add(x);
-            }
-            Collections.sort(di, new Comparator<Item>() {
-                @Override public int compare(Item a, Item b) { return Long.compare(b.ms, a.ms); }
-            });
-            int n = Math.min(di.size(), 6);
-            long rest = 0;
-            for (int k = 6; k < di.size(); k++) rest += di.get(k).ms;
-            int len = n + (rest > 0 ? 1 : 0);
-            segV[i] = new long[len];
-            segC[i] = new int[len];
-            for (int k = 0; k < n; k++) {
-                segV[i][k] = di.get(k).ms;
-                segC[i][k] = ensureMeta(pmc, di.get(k).pkg).color;
-            }
-            if (rest > 0) { segV[i][n] = rest; segC[i][n] = 0xFF5F6368; }
-        }
+        long wkey = ws.getTimeInMillis();
+        long key = wkey * 10 + idx;
+        boolean anim = key != lastKey;
+        boolean newWeek = wkey != lastWeekKey;
+        lastKey = key;
+        lastWeekKey = wkey;
         chart.setThresholds(Usage.thLow(this), Usage.thHigh(this));
-        chart.set(totals, segV, segC, fut, idx, new ChartView.Listener() {
+        chart.set(totals, fut, idx, new ChartView.Listener() {
             @Override public void onDay(int i) {
                 Calendar c = Usage.weekStart(sel);
                 c.add(Calendar.DAY_OF_YEAR, i);
@@ -461,7 +455,15 @@ public class MainActivity extends Activity {
             }
         });
 
-        totalTv.setText(Usage.fmtTotal(totals[idx]));
+        if (newWeek) {
+            chart.grow();
+            if (slideDir != 0) {
+                chart.setTranslationX(slideDir * dp(36));
+                chart.setAlpha(0f);
+                chart.animate().translationX(0f).alpha(1f).setDuration(260).setInterpolator(decel).withLayer().start();
+            }
+        }
+        animateTotal(totals[idx], anim);
         boolean today = isToday();
         Calendar y = Usage.midnight(Calendar.getInstance());
         y.add(Calendar.DAY_OF_YEAR, -1);
@@ -478,7 +480,52 @@ public class MainActivity extends Activity {
         list.removeAllViews();
         PackageManager pm = getPackageManager();
         long maxMs = items.isEmpty() ? 1 : items.get(0).ms;
-        for (Item it : items) list.addView(row(it, ensureMeta(pm, it.pkg), maxMs));
+        int rowNo = 0;
+        for (Item it : items) {
+            View rv = row(it, ensureMeta(pm, it.pkg), maxMs);
+            list.addView(rv);
+            if (anim && rowNo < 8) animateRow(rv, rowNo);
+            rowNo++;
+        }
+        if (anim) slideDir = 0;
+    }
+
+    private void animateTotal(final long to, boolean anim) {
+        if (totalAnim != null) totalAnim.cancel();
+        if (!anim || Math.abs(to - shownTotal) < 60000L) {
+            totalTv.setText(Usage.fmtTotal(to));
+            shownTotal = to;
+            lastTotalStr = "";
+            return;
+        }
+        final long from = shownTotal;
+        totalAnim = ValueAnimator.ofFloat(0f, 1f);
+        totalAnim.setDuration(500);
+        totalAnim.setInterpolator(decel);
+        totalAnim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override public void onAnimationUpdate(ValueAnimator a) {
+                long v = from + (long) ((to - from) * (Float) a.getAnimatedValue());
+                shownTotal = v;
+                String t = Usage.fmtTotal(v);
+                if (!t.equals(lastTotalStr)) { lastTotalStr = t; totalTv.setText(t); }
+            }
+        });
+        totalAnim.start();
+    }
+
+    private void animateRow(View v, int i) {
+        v.setAlpha(0f);
+        if (slideDir != 0) v.setTranslationX(slideDir * dp(28)); else v.setTranslationY(dp(18));
+        long delay = i * 40L;
+        v.animate().alpha(1f).translationX(0f).translationY(0f)
+                .setStartDelay(delay).setDuration(280).setInterpolator(decel).withLayer().start();
+        Object f = v.getTag();
+        if (f instanceof View) {
+            View fl = (View) f;
+            fl.setPivotX(0f);
+            fl.setScaleX(0f);
+            fl.animate().scaleX(1f).setStartDelay(delay + 140).setDuration(420).setInterpolator(decel).start();
+        }
     }
 
     private View row(final Item it, final Meta m, long maxMs) {
@@ -521,6 +568,7 @@ public class MainActivity extends Activity {
         bp.rightMargin = dp(8);
         col.addView(bar, bp);
         r.addView(col, cp);
+        r.setTag(fill);
 
         View div = new View(this);
         div.setBackgroundColor(C_DIV);
@@ -547,6 +595,7 @@ public class MainActivity extends Activity {
     private void openDetail(String pkg) {
         startActivity(new Intent(this, AppDetailActivity.class)
                 .putExtra("pkg", pkg).putExtra("day", sel.getTimeInMillis()));
+        overridePendingTransition(R.anim.slide_in_right, R.anim.fade_out);
     }
 
     private void appInfo(String pkg) {
@@ -978,7 +1027,7 @@ public class MainActivity extends Activity {
     // ---- Colour accent from an app icon
     static int dominant(Drawable d) {
         try {
-            int s = 40;
+            int s = 24;
             Bitmap b = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888);
             Canvas c = new Canvas(b);
             d.setBounds(0, 0, s, s);

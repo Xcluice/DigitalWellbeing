@@ -37,12 +37,19 @@ final class Usage {
         c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putStringSet(KEY, new HashSet<>(s)).apply();
     }
 
-    static Set<String> launchable(Context c) {
+    private static Set<String> launchCache;
+    private static long launchAt;
+
+    static synchronized Set<String> launchable(Context c) {
+        long n = System.currentTimeMillis();
+        if (launchCache != null && n - launchAt < 300000L) return launchCache;
         Intent i = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER);
         List<ResolveInfo> l = c.getPackageManager().queryIntentActivities(i, 0);
         Set<String> s = new HashSet<>();
         for (ResolveInfo r : l) s.add(r.activityInfo.packageName);
         s.remove(c.getPackageName());
+        launchCache = s;
+        launchAt = n;
         return s;
     }
 
