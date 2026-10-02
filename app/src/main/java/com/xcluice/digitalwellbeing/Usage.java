@@ -85,45 +85,46 @@ final class Usage {
         Set<String> ok = launchable(c);
         UsageEvents ev = usm.queryEvents(b[0], end);
         UsageEvents.Event e = new UsageEvents.Event();
-        Map<String, Set<String>> open = new HashMap<>();
-        Map<String, Long> start = new HashMap<>();
+        // Only one app can be in front at a time: this keeps totals sane even when
+        // the device (e.g. older Samsung/Oreo) drops or reorders some events.
+        String cur = null;
+        long curStart = 0, lastTs = b[0];
 
         while (ev.hasNextEvent()) {
             ev.getNextEvent(e);
             int t = e.getEventType();
             long ts = e.getTimeStamp();
             String pkg = e.getPackageName();
+            lastTs = ts;
             if (t == 1) { // MOVE_TO_FOREGROUND / ACTIVITY_RESUMED
-                Set<String> s = open.get(pkg);
-                if (s == null) { s = new HashSet<>(); open.put(pkg, s); }
-                if (s.isEmpty()) start.put(pkg, ts);
-                String cls = e.getClassName();
-                s.add(cls == null ? "" : cls);
+                if (cur != null && !cur.equals(pkg)) {
+                    add(out, ok, cur, curStart, ts, b, n);
+                    cur = null;
+                }
+                if (cur == null) { cur = pkg; curStart = ts; }
             } else if (t == 2) { // MOVE_TO_BACKGROUND / ACTIVITY_PAUSED
-                Set<String> s = open.get(pkg);
-                if (s == null) continue;
-                String cls = e.getClassName();
-                s.remove(cls == null ? "" : cls);
-                if (s.isEmpty()) {
-                    Long st = start.remove(pkg);
-                    if (st != null) add(out, ok, pkg, st, ts, b, n);
+                if (cur != null && cur.equals(pkg)) {
+                    add(out, ok, cur, curStart, ts, b, n);
+                    cur = null;
                 }
-            } else if (t == 16 || t == 17) { // SCREEN_NON_INTERACTIVE / KEYGUARD_SHOWN
-                for (Map.Entry<String, Long> en : new HashMap<>(start).entrySet()) {
-                    add(out, ok, en.getKey(), en.getValue(), ts, b, n);
+            } else if (t == 16 || t == 17 || t == 26) { // screen off / keyguard / shutdown
+                if (cur != null) {
+                    add(out, ok, cur, curStart, ts, b, n);
+                    cur = null;
                 }
-                start.clear();
-                for (Set<String> s : open.values()) s.clear();
             }
         }
-        for (Map.Entry<String, Long> en : start.entrySet()) {
-            add(out, ok, en.getKey(), en.getValue(), end, b, n);
+        if (cur != null) {
+            android.os.PowerManager pm = (android.os.PowerManager) c.getSystemService(Context.POWER_SERVICE);
+            long stop = pm.isInteractive() ? end : Math.min(end, lastTs + 60000L);
+            add(out, ok, cur, curStart, stop, b, n);
         }
         return out;
     }
 
     private static void add(Map<String, long[]> out, Set<String> ok, String pkg, long s, long e, long[] b, int n) {
         if (!ok.contains(pkg) || e <= s) return;
+        if (e - s > 6 * 3600000L) e = s + 6 * 3600000L; // safety cap for a single session
         long[] arr = out.get(pkg);
         if (arr == null) { arr = new long[n]; out.put(pkg, arr); }
         for (int i = 0; i < n; i++) {
