@@ -155,6 +155,58 @@ final class Usage {
         return m + "m";
     }
 
+    /** Diagnostic dump: event type counts + the longest sessions and why each one ended. */
+    static String debug(Context c) {
+        UsageStatsManager usm = (UsageStatsManager) c.getSystemService(Context.USAGE_STATS_SERVICE);
+        long now = System.currentTimeMillis();
+        long from = now - 3L * 86400000L;
+        java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("EEE HH:mm:ss", java.util.Locale.US);
+        UsageEvents ev = usm.queryEvents(from, now);
+        UsageEvents.Event e = new UsageEvents.Event();
+        Map<Integer, Integer> hist = new java.util.TreeMap<>();
+        List<Object[]> sessions = new java.util.ArrayList<>();
+        String cur = null, cls = "";
+        long curStart = 0;
+        int total = 0;
+        while (ev.hasNextEvent()) {
+            ev.getNextEvent(e);
+            total++;
+            int t = e.getEventType();
+            long ts = e.getTimeStamp();
+            String pkg = e.getPackageName();
+            Integer h = hist.get(t);
+            hist.put(t, h == null ? 1 : h + 1);
+            String why = null;
+            if (t == 1) {
+                if (cur != null && !cur.equals(pkg)) { why = "next app " + pkg; }
+                if (why != null) { sessions.add(new Object[]{cur, curStart, ts, why}); cur = null; }
+                if (cur == null) { cur = pkg; curStart = ts; }
+            } else if (t == 2) {
+                if (cur != null && cur.equals(pkg)) { sessions.add(new Object[]{cur, curStart, ts, "pause"}); cur = null; }
+            } else if (t == 16 || t == 17 || t == 26) {
+                if (cur != null) { sessions.add(new Object[]{cur, curStart, ts, "screen/type " + t}); cur = null; }
+            }
+        }
+        if (cur != null) sessions.add(new Object[]{cur, curStart, now, "STILL OPEN"});
+        java.util.Collections.sort(sessions, new java.util.Comparator<Object[]>() {
+            @Override public int compare(Object[] a, Object[] b) {
+                return Long.compare((Long) b[2] - (Long) b[1], (Long) a[2] - (Long) a[1]);
+            }
+        });
+        StringBuilder sb = new StringBuilder();
+        sb.append("SDK ").append(android.os.Build.VERSION.SDK_INT).append("  events(3d): ").append(total).append("\n");
+        sb.append("types: ").append(hist.toString()).append("\n\nLongest sessions:\n");
+        for (int i = 0; i < Math.min(8, sessions.size()); i++) {
+            Object[] o = sessions.get(i);
+            long mins = ((Long) o[2] - (Long) o[1]) / 60000;
+            String p = (String) o[0];
+            sb.append(mins).append("m  ").append(p.substring(Math.max(0, p.length() - 22))).append("\n  ")
+                    .append(f.format(new java.util.Date((Long) o[1]))).append(" -> ")
+                    .append(f.format(new java.util.Date((Long) o[2]))).append("\n  end: ").append(o[3]).append("\n");
+        }
+        return sb.toString();
+    }
+
     // ---- App timers
     static int limit(Context c, String pkg) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("lim_" + pkg, 0);
