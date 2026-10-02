@@ -207,6 +207,66 @@ final class Usage {
         return sb.toString();
     }
 
+    static class Detail {
+        long[] hours = new long[24];
+        int opens;
+    }
+
+    /** Hour-by-hour foreground time (and number of opens) for one app on the day starting at dayStart. */
+    static Detail detail(Context c, String pkg, long dayStart) {
+        Detail d = new Detail();
+        UsageStatsManager usm = (UsageStatsManager) c.getSystemService(Context.USAGE_STATS_SERVICE);
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(dayStart);
+        cal.add(Calendar.DAY_OF_YEAR, 1);
+        long end = Math.min(System.currentTimeMillis(), cal.getTimeInMillis());
+        if (end <= dayStart) return d;
+        UsageEvents ev = usm.queryEvents(dayStart, end);
+        UsageEvents.Event e = new UsageEvents.Event();
+        String cur = null;
+        long curStart = 0, lastTs = dayStart;
+        while (ev.hasNextEvent()) {
+            ev.getNextEvent(e);
+            int t = e.getEventType();
+            long ts = e.getTimeStamp();
+            String p = e.getPackageName();
+            lastTs = ts;
+            if (t == 1) {
+                if (cur != null && !cur.equals(p)) {
+                    if (cur.equals(pkg)) addHours(d, curStart, ts, dayStart);
+                    cur = null;
+                }
+                if (cur == null) { cur = p; curStart = ts; if (p.equals(pkg)) d.opens++; }
+            } else if (t == 2) {
+                if (cur != null && cur.equals(p)) {
+                    if (cur.equals(pkg)) addHours(d, curStart, ts, dayStart);
+                    cur = null;
+                }
+            } else if (t == 16 || t == 17 || t == 26) {
+                if (cur != null) {
+                    if (cur.equals(pkg)) addHours(d, curStart, ts, dayStart);
+                    cur = null;
+                }
+            }
+        }
+        if (cur != null && cur.equals(pkg)) {
+            android.os.PowerManager pm = (android.os.PowerManager) c.getSystemService(Context.POWER_SERVICE);
+            long stop = pm.isInteractive() ? end : Math.min(end, lastTs + 60000L);
+            addHours(d, curStart, stop, dayStart);
+        }
+        return d;
+    }
+
+    private static void addHours(Detail d, long s, long e, long dayStart) {
+        if (e <= s) return;
+        if (e - s > 6 * 3600000L) e = s + 6 * 3600000L;
+        for (int h = 0; h < 24; h++) {
+            long lo = Math.max(s, dayStart + h * 3600000L);
+            long hi = Math.min(e, dayStart + (h + 1) * 3600000L);
+            if (hi > lo) d.hours[h] += hi - lo;
+        }
+    }
+
     // ---- Colour options
     static int accent(Context c) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("acc", 0xFF8AB4F8);

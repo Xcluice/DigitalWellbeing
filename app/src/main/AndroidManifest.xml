@@ -28,6 +28,10 @@
         </activity>
 
         <activity
+            android:name=".AppDetailActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".BlockActivity"
             android:exported="false"
             android:excludeFromRecents="true"

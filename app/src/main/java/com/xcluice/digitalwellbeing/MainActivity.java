@@ -234,10 +234,10 @@ public class MainActivity extends Activity {
         nl.rightMargin = dp(40);
         dateRow.addView(nextBtn, nl);
         prevBtn.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { moveDay(-1); }
+            @Override public void onClick(View v) { moveWeek(-1); }
         });
         nextBtn.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { moveDay(1); }
+            @Override public void onClick(View v) { moveWeek(1); }
         });
         contentView.addView(dateRow, dr);
 
@@ -331,10 +331,15 @@ public class MainActivity extends Activity {
         return sel.getTimeInMillis() == Usage.midnight(Calendar.getInstance()).getTimeInMillis();
     }
 
-    private void moveDay(int delta) {
+    /** One screen = one week: the arrows jump a whole week, keeping the same weekday. */
+    private void moveWeek(int delta) {
         Calendar n = (Calendar) sel.clone();
-        n.add(Calendar.DAY_OF_YEAR, delta);
-        if (n.getTimeInMillis() > Usage.midnight(Calendar.getInstance()).getTimeInMillis()) return;
+        n.add(Calendar.DAY_OF_YEAR, 7 * delta);
+        Calendar t = Usage.midnight(Calendar.getInstance());
+        if (n.getTimeInMillis() > t.getTimeInMillis()) {
+            if (delta > 0 && Usage.weekStart(sel).getTimeInMillis() >= Usage.weekStart(t).getTimeInMillis()) return;
+            n = t;
+        }
         sel = n;
         load();
     }
@@ -462,9 +467,13 @@ public class MainActivity extends Activity {
         y.add(Calendar.DAY_OF_YEAR, -1);
         if (today) subTv.setText("Today");
         else if (sel.getTimeInMillis() == y.getTimeInMillis()) subTv.setText("Yesterday");
-        else subTv.setText(new SimpleDateFormat("EEEE", Locale.getDefault()).format(sel.getTime()));
-        dateTv.setText(new SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(sel.getTime()));
-        nextBtn.setVisibility(today ? View.INVISIBLE : View.VISIBLE);
+        else subTv.setText(new SimpleDateFormat("EEEE, MMM d", Locale.getDefault()).format(sel.getTime()));
+        Calendar we = (Calendar) ws.clone();
+        we.add(Calendar.DAY_OF_YEAR, 6);
+        SimpleDateFormat rf = new SimpleDateFormat("MMM d", Locale.getDefault());
+        dateTv.setText(rf.format(ws.getTime()) + " \u2013 " + rf.format(we.getTime()));
+        nextBtn.setVisibility(ws.getTimeInMillis() < Usage.weekStart(Calendar.getInstance()).getTimeInMillis()
+                ? View.VISIBLE : View.INVISIBLE);
 
         list.removeAllViews();
         PackageManager pm = getPackageManager();
@@ -524,7 +533,7 @@ public class MainActivity extends Activity {
         r.addView(act, new LinearLayout.LayoutParams(dp(64), dp(64)));
 
         r.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { appInfo(it.pkg); }
+            @Override public void onClick(View v) { openDetail(it.pkg); }
         });
         act.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
@@ -533,6 +542,11 @@ public class MainActivity extends Activity {
             }
         });
         return r;
+    }
+
+    private void openDetail(String pkg) {
+        startActivity(new Intent(this, AppDetailActivity.class)
+                .putExtra("pkg", pkg).putExtra("day", sel.getTimeInMillis()));
     }
 
     private void appInfo(String pkg) {
