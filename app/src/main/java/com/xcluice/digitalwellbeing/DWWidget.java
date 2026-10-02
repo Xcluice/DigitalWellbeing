@@ -24,6 +24,22 @@ public class DWWidget extends AppWidgetProvider {
     private static final int[] PILL = {R.id.pill1, R.id.pill2, R.id.pill3, R.id.pill4, R.id.pill5};
     private static final int[] NAME = {R.id.name1, R.id.name2, R.id.name3, R.id.name4, R.id.name5};
 
+    static final String ACTION_REFRESH = "com.xcluice.digitalwellbeing.REFRESH";
+
+    @Override
+    public void onReceive(final Context c, Intent i) {
+        if (ACTION_REFRESH.equals(i.getAction())) {
+            final PendingResult pr = goAsync();
+            new Thread(new Runnable() {
+                @Override public void run() {
+                    try { refreshAll(c); } finally { pr.finish(); }
+                }
+            }).start();
+        } else {
+            super.onReceive(c, i);
+        }
+    }
+
     @Override
     public void onUpdate(final Context c, final AppWidgetManager m, final int[] ids) {
         run(c, m, ids);
@@ -88,6 +104,9 @@ public class DWWidget extends AppWidgetProvider {
 
         PendingIntent pi = PendingIntent.getActivity(c, 0, new Intent(c, MainActivity.class),
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
+        PendingIntent refresh = PendingIntent.getBroadcast(c, 1,
+                new Intent(c, DWWidget.class).setAction(ACTION_REFRESH),
+                PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         boolean portrait = c.getResources().getConfiguration().orientation != Configuration.ORIENTATION_LANDSCAPE;
 
         for (int id : ids) {
@@ -113,6 +132,7 @@ public class DWWidget extends AppWidgetProvider {
                 }
             }
             rv.setOnClickPendingIntent(R.id.root, pi);
+            rv.setOnClickPendingIntent(R.id.left, refresh);
             m.updateAppWidget(id, rv);
         }
     }
