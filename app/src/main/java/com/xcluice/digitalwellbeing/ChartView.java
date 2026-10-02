@@ -3,6 +3,7 @@ package com.xcluice.digitalwellbeing;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.View;
@@ -16,8 +17,12 @@ public class ChartView extends View {
     private final Paint bar = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint txt = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint day = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint gap = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final RectF rf = new RectF();
-    private long[] vals = new long[7];
+    private final Path clip = new Path();
+    private long[] totals = new long[7];
+    private long[][] segV = new long[7][0];
+    private int[][] segC = new int[7][0];
     private boolean[] future = new boolean[7];
     private int selected;
     private Listener listener;
@@ -32,10 +37,12 @@ public class ChartView extends View {
         day.setColor(0xFFBDC1C6);
         day.setTextSize(12 * d);
         day.setTextAlign(Paint.Align.CENTER);
+        gap.setColor(0xFF1F1F1F);
+        gap.setStrokeWidth(1.5f * d);
     }
 
-    void set(long[] v, boolean[] f, int sel, Listener l) {
-        vals = v; future = f; selected = sel; listener = l;
+    void set(long[] t, long[][] sv, int[][] sc, boolean[] f, int sel, Listener l) {
+        totals = t; segV = sv; segC = sc; future = f; selected = sel; listener = l;
         invalidate();
     }
 
@@ -54,7 +61,7 @@ public class ChartView extends View {
         float[] g = geo();
         float left = g[0], right = g[1], grid = g[3], base = g[4];
         double max = 0;
-        for (int i = 0; i < 7; i++) if (!future[i]) max = Math.max(max, vals[i] / 3600000.0);
+        for (int i = 0; i < 7; i++) if (!future[i]) max = Math.max(max, totals[i] / 3600000.0);
         int topH = max <= 6 ? 6 : (int) (Math.ceil(max / 6) * 6);
         for (int k = 0; k <= 3; k++) {
             float y = base - grid * k / 3f;
@@ -65,14 +72,27 @@ public class ChartView extends View {
         for (int i = 0; i < 7; i++) {
             float cx = left + slot * (i + 0.5f);
             c.drawText(DAYS[i], cx, base + 20 * d, day);
-            if (future[i] || vals[i] <= 0) continue;
-            float h = (float) (vals[i] / 3600000.0 / topH) * grid;
+            if (future[i] || totals[i] <= 0) continue;
+            float h = (float) (totals[i] / 3600000.0 / topH) * grid;
             if (h < 3 * d) h = 3 * d;
-            bar.setColor(i == selected ? 0xFFAECBFA : 0xFFF1F3F4);
+            int alpha = i == selected ? 255 : 150;
             c.save();
-            c.clipRect(0, 0, getWidth(), base);
+            clip.reset();
             rf.set(cx - bw / 2, base - h, cx + bw / 2, base + r);
-            c.drawRoundRect(rf, r, r, bar);
+            clip.addRoundRect(rf, r, r, Path.Direction.CW);
+            c.clipPath(clip);
+            float y = base;
+            long sum = 0;
+            for (long v : segV[i]) sum += v;
+            if (sum <= 0) sum = 1;
+            for (int k = 0; k < segV[i].length; k++) {
+                float sh = h * segV[i][k] / sum;
+                bar.setColor(segC[i][k]);
+                bar.setAlpha(alpha);
+                c.drawRect(cx - bw / 2, y - sh, cx + bw / 2, y, bar);
+                y -= sh;
+                if (k < segV[i].length - 1) c.drawLine(cx - bw / 2, y, cx + bw / 2, y, gap);
+            }
             c.restore();
         }
     }
