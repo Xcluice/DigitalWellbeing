@@ -188,7 +188,7 @@ public class MainActivity extends Activity {
         top.addView(more, mlp);
         root.addView(top);
 
-        ScrollView sv = new ScrollView(this);
+        ScrollView sv = new StretchScrollView(this);
         sv.setLayoutParams(new LinearLayout.LayoutParams(-1, 0, 1f));
         sv.setVerticalScrollBarEnabled(false);
         sv.setOverScrollMode(View.OVER_SCROLL_NEVER);

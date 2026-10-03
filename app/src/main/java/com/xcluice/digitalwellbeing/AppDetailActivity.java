@@ -81,7 +81,7 @@ public class AppDetailActivity extends Activity {
         });
         root.addView(back, new LinearLayout.LayoutParams(dp(52), dp(52)));
 
-        ScrollView sv = new ScrollView(this);
+        ScrollView sv = new StretchScrollView(this);
         sv.setVerticalScrollBarEnabled(false);
         sv.setOverScrollMode(View.OVER_SCROLL_NEVER);
         root.addView(sv, new LinearLayout.LayoutParams(-1, 0, 1f));
