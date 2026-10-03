@@ -37,11 +37,12 @@ public class ChartView extends View {
     public ChartView(Context c) {
         super(c);
         d = c.getResources().getDisplayMetrics().density;
-        line.setColor(0xFF5F6368);
+        Themes.T th = Themes.get(c);
+        line.setColor(th.grid);
         line.setStrokeWidth(d);
-        txt.setColor(0xFF9AA0A6);
+        txt.setColor(th.sub);
         txt.setTextSize(11 * d);
-        day.setColor(0xFFBDC1C6);
+        day.setColor(th.sub);
         day.setTextSize(12 * d);
         day.setTextAlign(Paint.Align.CENTER);
     }

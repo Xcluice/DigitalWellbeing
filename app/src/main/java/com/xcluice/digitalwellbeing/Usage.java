@@ -217,6 +217,7 @@ final class Usage {
     static class Detail {
         long[] hours = new long[24];
         int opens;
+        long lastEnd;
     }
 
     /** Hour-by-hour foreground time (and number of opens) for one app on the day starting at dayStart. */
@@ -267,6 +268,7 @@ final class Usage {
     private static void addHours(Detail d, long s, long e, long dayStart) {
         if (e <= s) return;
         if (e - s > 6 * 3600000L) e = s + 6 * 3600000L;
+        if (e > d.lastEnd) d.lastEnd = e;
         for (int h = 0; h < 24; h++) {
             long lo = Math.max(s, dayStart + h * 3600000L);
             long hi = Math.min(e, dayStart + (h + 1) * 3600000L);

@@ -2,6 +2,7 @@ package com.xcluice.digitalwellbeing;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.animation.ValueAnimator;
 import android.content.Intent;
 import android.app.PendingIntent;
@@ -14,6 +15,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -25,6 +27,8 @@ import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.HapticFeedbackConstants;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.view.animation.DecelerateInterpolator;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
@@ -59,8 +63,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class MainActivity extends Activity {
-    static final int C_BG = 0xFF1F1F1F, C_BAR = 0xFF424242, C_SUB = 0xFFBDC1C6,
-            C_DIV = 0xFF3C4043, C_LINK = 0xFF8AB4F8;
+    static final int C_LINK = 0xFF8AB4F8;
 
     static class Meta {
         String label;
@@ -85,7 +88,8 @@ public class MainActivity extends Activity {
     private TextView totalTv, subTv, dateTv;
     private ImageView prevBtn, nextBtn;
     private ChartView chart;
-    private ImageView more;
+    private TextView more;
+    private Themes.T th;
     private LinearLayout checking;
     private ProgressBar spinner;
     private final DecelerateInterpolator decel = new DecelerateInterpolator(1.8f);
@@ -119,7 +123,7 @@ public class MainActivity extends Activity {
     private ImageView icon(int res, int sizeDp, int padDp) {
         ImageView i = new ImageView(this);
         i.setImageResource(res);
-        i.setColorFilter(Color.WHITE);
+        i.setColorFilter(th.text);
         i.setPadding(dp(padDp), dp(padDp), dp(padDp), dp(padDp));
         i.setLayoutParams(new LinearLayout.LayoutParams(dp(sizeDp), dp(sizeDp)));
         return i;
@@ -128,6 +132,8 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        th = Themes.get(this);
+        Themes.applyWindow(this);
         d = getResources().getDisplayMetrics().density;
 
         LinearLayout root = new LinearLayout(this);
@@ -145,7 +151,7 @@ public class MainActivity extends Activity {
         spinner.setIndeterminate(true);
         spinner.setIndeterminateTintList(ColorStateList.valueOf(Usage.accent(this)));
         checking.addView(spinner, new LinearLayout.LayoutParams(dp(22), dp(22)));
-        TextView ckt = tv("Checking for updates\u2026", 13, C_SUB);
+        TextView ckt = tv("Checking for updates\u2026", 13, th.sub);
         LinearLayout.LayoutParams ckp = new LinearLayout.LayoutParams(-2, -2);
         ckp.leftMargin = dp(10);
         checking.addView(ckt, ckp);
@@ -167,11 +173,19 @@ public class MainActivity extends Activity {
         blp.leftMargin = dp(16);
         top.addView(banner, blp);
         top.addView(new View(this), new LinearLayout.LayoutParams(0, 1, 1f));
-        more = icon(R.drawable.ic_more, 52, 14);
+        more = tv("Settings", 14, Usage.accent(this));
+        more.setGravity(Gravity.CENTER);
+        more.setPadding(dp(16), dp(8), dp(16), dp(8));
+        GradientDrawable mg = new GradientDrawable();
+        mg.setCornerRadius(dp(18));
+        mg.setStroke(dp(1), th.div);
+        more.setBackground(mg);
         more.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { showMenu(more); }
+            @Override public void onClick(View v) { showSettings(); }
         });
-        top.addView(more);
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(-2, -2);
+        mlp.rightMargin = dp(16);
+        top.addView(more, mlp);
         root.addView(top);
 
         ScrollView sv = new ScrollView(this);
@@ -187,10 +201,10 @@ public class MainActivity extends Activity {
         permView.setOrientation(LinearLayout.VERTICAL);
         permView.setGravity(Gravity.CENTER_HORIZONTAL);
         permView.setPadding(dp(32), dp(120), dp(32), dp(32));
-        TextView pt = tv("Allow usage access", 22, Color.WHITE);
+        TextView pt = tv("Allow usage access", 22, th.text);
         pt.setGravity(Gravity.CENTER);
         permView.addView(pt);
-        TextView pd = tv("To show your screen time, allow Digital Wellbeing in Usage access settings.", 14, C_SUB);
+        TextView pd = tv("To show your screen time, allow Digital Wellbeing in Usage access settings.", 14, th.sub);
         pd.setGravity(Gravity.CENTER);
         pd.setLineSpacing(0, 1.2f);
         LinearLayout.LayoutParams pdp = new LinearLayout.LayoutParams(-2, -2);
@@ -208,13 +222,13 @@ public class MainActivity extends Activity {
         // ---- Content view
         contentView = new LinearLayout(this);
         contentView.setOrientation(LinearLayout.VERTICAL);
-        totalTv = tv("0 min", 26, Color.WHITE);
+        totalTv = tv("0 min", 26, th.text);
         totalTv.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.topMargin = dp(24);
         contentView.addView(totalTv, lp);
 
-        subTv = tv("Today", 12, C_SUB);
+        subTv = tv("Today", 12, th.sub);
         subTv.setGravity(Gravity.CENTER);
         subTv.setPadding(dp(40), dp(10), dp(40), dp(10));
         subTv.setOnClickListener(new View.OnClickListener() {
@@ -230,7 +244,7 @@ public class MainActivity extends Activity {
         FrameLayout dateRow = new FrameLayout(this);
         LinearLayout.LayoutParams dr = new LinearLayout.LayoutParams(-1, dp(48));
         dr.topMargin = dp(20);
-        dateTv = tv("", 15, Color.WHITE);
+        dateTv = tv("", 15, th.text);
         dateRow.addView(dateTv, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
         prevBtn = icon(R.drawable.ic_prev, 40, 8);
         FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(dp(40), dp(40), Gravity.START | Gravity.CENTER_VERTICAL);
@@ -295,23 +309,128 @@ public class MainActivity extends Activity {
         setIntent(i);
     }
 
-    private void showMenu(View anchor) {
-        PopupMenu m = new PopupMenu(this, anchor);
-        m.getMenu().add(0, 1, 0, "Refresh");
-        m.getMenu().add(0, 2, 1, "Colour options");
-        m.getMenu().add(0, 4, 2, "Notifications");
-        m.getMenu().add(0, 3, 3, "Check for updates");
-        m.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override public boolean onMenuItemClick(android.view.MenuItem it) {
-                if (it.getItemId() == 2) { showColors(); return true; }
-                if (it.getItemId() == 3) { checkUpdate(true); return true; }
-                if (it.getItemId() == 4) { showNotifSettings(); return true; }
-                loadedWeek = -1;
-                load();
-                return true;
+    private int dlgStyle() {
+        return th.light ? android.R.style.Theme_DeviceDefault_Light_Dialog_Alert
+                : android.R.style.Theme_DeviceDefault_Dialog_Alert;
+    }
+
+    /** A rounded panel that slides up from the bottom. maxHeight 0 = wrap content. */
+    private Dialog sheet(View content, int maxHeight) {
+        final Dialog dg = new Dialog(this);
+        dg.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout wrap = new LinearLayout(this);
+        wrap.setOrientation(LinearLayout.VERTICAL);
+        wrap.setGravity(Gravity.CENTER_HORIZONTAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(th.sheet);
+        float r = dp(24);
+        bg.setCornerRadii(new float[]{r, r, r, r, 0, 0, 0, 0});
+        wrap.setBackground(bg);
+        View handle = new View(this);
+        GradientDrawable hg = new GradientDrawable();
+        hg.setColor(th.div);
+        hg.setCornerRadius(dp(2));
+        handle.setBackground(hg);
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(dp(40), dp(4));
+        hp.topMargin = dp(10);
+        wrap.addView(handle, hp);
+        wrap.addView(content, new LinearLayout.LayoutParams(-1, maxHeight > 0 ? maxHeight : -2));
+        dg.setContentView(wrap);
+        Window w = dg.getWindow();
+        w.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        w.getDecorView().setPadding(0, 0, 0, 0);
+        w.setGravity(Gravity.BOTTOM);
+        w.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        w.setWindowAnimations(R.style.SheetAnim);
+        w.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+        w.setDimAmount(0.55f);
+        return dg;
+    }
+
+    private void showSettings() {
+        final Dialog[] dg = new Dialog[1];
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(24), dp(14), dp(24), dp(28));
+        box.addView(tv("Settings", 20, th.text));
+        String[] titles = {"Themes", "Colour options", "Notifications", "Check for updates", "Refresh data"};
+        String[] subs = {Themes.get(this).name, "Accent and chart colours", "Update alerts and daily summary",
+                "Installed: build " + Updater.installed(this), "Reload your usage"};
+        for (int i = 0; i < titles.length; i++) {
+            final int id = i;
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.VERTICAL);
+            row.setPadding(0, dp(14), 0, dp(14));
+            row.addView(tv(titles[i], 16, th.text));
+            LinearLayout.LayoutParams sp2 = new LinearLayout.LayoutParams(-2, -2);
+            sp2.topMargin = dp(4);
+            row.addView(tv(subs[i], 13, th.sub), sp2);
+            row.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    dg[0].dismiss();
+                    if (id == 0) showThemes();
+                    else if (id == 1) showColors();
+                    else if (id == 2) showNotifSettings();
+                    else if (id == 3) checkUpdate(true);
+                    else { loadedWeek = -1; load(); }
+                }
+            });
+            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2);
+            if (i == 0) rp.topMargin = dp(10);
+            box.addView(row, rp);
+        }
+        dg[0] = sheet(box, 0);
+        dg[0].show();
+    }
+
+    private void showThemes() {
+        final Dialog[] dg = new Dialog[1];
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(24), dp(14), dp(24), dp(20));
+        box.addView(tv("Themes", 20, th.text));
+        LinearLayout.LayoutParams subp = new LinearLayout.LayoutParams(-2, -2);
+        subp.topMargin = dp(4);
+        box.addView(tv("Pick a look for the whole app", 13, th.sub), subp);
+        int cols = 3, total = Themes.ALL.length, cur = Themes.index(this);
+        int cell = (getResources().getDisplayMetrics().widthPixels - dp(48) - dp(12) * (cols - 1)) / cols;
+        int acc = Usage.accent(this);
+        for (int i = 0; i < total; i += cols) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            for (int j = 0; j < cols; j++) {
+                final int idx = i + j;
+                LinearLayout.LayoutParams cp2 = new LinearLayout.LayoutParams(cell, -2);
+                if (j > 0) cp2.leftMargin = dp(12);
+                if (idx >= total) { row.addView(new View(this), cp2); continue; }
+                LinearLayout item = new LinearLayout(this);
+                item.setOrientation(LinearLayout.VERTICAL);
+                item.addView(new ThemePreview(this, Themes.ALL[idx], idx == cur, acc),
+                        new LinearLayout.LayoutParams(cell, (int) (cell * 1.3f)));
+                TextView nm = tv(Themes.ALL[idx].name, 12, th.text);
+                nm.setGravity(Gravity.CENTER);
+                LinearLayout.LayoutParams np2 = new LinearLayout.LayoutParams(-1, -2);
+                np2.topMargin = dp(8);
+                item.addView(nm, np2);
+                item.setOnClickListener(new View.OnClickListener() {
+                    @Override public void onClick(View v) {
+                        Themes.set(MainActivity.this, idx);
+                        dg[0].dismiss();
+                        recreate();
+                    }
+                });
+                row.addView(item, cp2);
             }
-        });
-        m.show();
+            LinearLayout.LayoutParams rp = new LinearLayout.LayoutParams(-1, -2);
+            rp.topMargin = dp(16);
+            box.addView(row, rp);
+        }
+        ScrollView sv = new ScrollView(this);
+        sv.setVerticalScrollBarEnabled(false);
+        sv.addView(box);
+        int maxH = (int) (getResources().getDisplayMetrics().heightPixels * 0.78f);
+        dg[0] = sheet(sv, maxH);
+        dg[0].show();
     }
 
     private void openAccessSettings() {
@@ -544,12 +663,12 @@ public class MainActivity extends Activity {
         col.setOrientation(LinearLayout.VERTICAL);
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1f);
         cp.leftMargin = dp(14);
-        TextView name = tv(m.label, 16, Color.WHITE);
+        TextView name = tv(m.label, 16, th.text);
         name.setSingleLine(true);
         name.setEllipsize(TextUtils.TruncateAt.END);
         col.addView(name);
         int lim = Usage.limit(this, it.pkg);
-        TextView time = tv(Usage.fmtRow(it.ms) + (lim > 0 && !m.sys ? "  \u00b7  " + Usage.fmtTotal(lim * 60000L) + " limit" : ""), 13, C_SUB);
+        TextView time = tv(Usage.fmtRow(it.ms) + (lim > 0 && !m.sys ? "  \u00b7  " + Usage.fmtTotal(lim * 60000L) + " limit" : ""), 13, th.sub);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
         tp.topMargin = dp(5);
         col.addView(time, tp);
@@ -571,7 +690,7 @@ public class MainActivity extends Activity {
         r.setTag(fill);
 
         View div = new View(this);
-        div.setBackgroundColor(C_DIV);
+        div.setBackgroundColor(th.div);
         r.addView(div, new LinearLayout.LayoutParams(dp(1), dp(38)));
 
         ImageView act = new ImageView(this);
@@ -606,7 +725,7 @@ public class MainActivity extends Activity {
 
     private void applyAccent() {
         int a = Usage.accent(this);
-        more.setColorFilter(a);
+        more.setTextColor(a);
         prevBtn.setColorFilter(a);
         nextBtn.setColorFilter(a);
         totalTv.setTextColor(a);
@@ -616,7 +735,7 @@ public class MainActivity extends Activity {
 
     private void showNotifSettings() {
         final boolean[] on = {Usage.notifUpd(this), Usage.notifSum(this)};
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, dlgStyle())
                 .setTitle("Notifications")
                 .setMultiChoiceItems(new String[]{"Update alerts", "Daily summary (around 9 PM)"}, on,
                         new android.content.DialogInterface.OnMultiChoiceClickListener() {
@@ -663,7 +782,7 @@ public class MainActivity extends Activity {
         LinearLayout l = new LinearLayout(this);
         l.setOrientation(LinearLayout.VERTICAL);
         l.setPadding(dp(22), dp(12), dp(22), dp(8));
-        l.addView(tv("Accent colour", 14, C_SUB));
+        l.addView(tv("Accent colour", 14, th.sub));
         for (int row = 0; row < 2; row++) {
             LinearLayout r = new LinearLayout(this);
             r.setOrientation(LinearLayout.HORIZONTAL);
@@ -684,7 +803,7 @@ public class MainActivity extends Activity {
         }
         restyle[0].run();
 
-        TextView ct = tv("Chart colours", 14, C_SUB);
+        TextView ct = tv("Chart colours", 14, th.sub);
         LinearLayout.LayoutParams ctp = new LinearLayout.LayoutParams(-2, -2);
         ctp.topMargin = dp(26);
         l.addView(ct, ctp);
@@ -704,15 +823,15 @@ public class MainActivity extends Activity {
         l.addView(strip, stp);
         LinearLayout ends = new LinearLayout(this);
         ends.setOrientation(LinearLayout.HORIZONTAL);
-        TextView e0 = tv("0h", 11, C_SUB);
+        TextView e0 = tv("0h", 11, th.sub);
         ends.addView(e0, new LinearLayout.LayoutParams(0, -2, 1f));
-        ends.addView(tv("12h", 11, C_SUB));
+        ends.addView(tv("12h", 11, th.sub));
         LinearLayout.LayoutParams enp = new LinearLayout.LayoutParams(-1, -2);
         enp.topMargin = dp(4);
         l.addView(ends, enp);
 
-        final TextView lowTv = tv("", 14, Color.WHITE);
-        final TextView highTv = tv("", 14, Color.WHITE);
+        final TextView lowTv = tv("", 14, th.text);
+        final TextView highTv = tv("", 14, th.text);
         final SeekBar lowBar = new SeekBar(this);
         lowBar.setMax(11);
         lowBar.setProgress(low[0]);
@@ -763,7 +882,7 @@ public class MainActivity extends Activity {
 
         ScrollView sv2 = new ScrollView(this);
         sv2.addView(l);
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, dlgStyle())
                 .setTitle("Colour options")
                 .setView(sv2)
                 .setPositiveButton("Save", new android.content.DialogInterface.OnClickListener() {
@@ -830,7 +949,7 @@ public class MainActivity extends Activity {
         final String url = updUrl;
         if (url == null) return;
         if (!getPackageManager().canRequestPackageInstalls()) {
-            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            new AlertDialog.Builder(this, dlgStyle())
                     .setTitle("Allow installing updates")
                     .setMessage("Android needs your OK once. Turn on \"Allow from this source\", then come back and tap Update now again.")
                     .setPositiveButton("Open settings", new android.content.DialogInterface.OnClickListener() {
@@ -848,7 +967,7 @@ public class MainActivity extends Activity {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(24), dp(16), dp(24), dp(8));
-        dlText = tv("Downloading update\u2026", 14, Color.WHITE);
+        dlText = tv("Downloading update\u2026", 14, th.text);
         box.addView(dlText);
         dlBar = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
         dlBar.setMax(100);
@@ -859,7 +978,7 @@ public class MainActivity extends Activity {
         bp2.topMargin = dp(16);
         box.addView(dlBar, bp2);
         cancelDl = false;
-        dlDialog = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        dlDialog = new AlertDialog.Builder(this, dlgStyle())
                 .setTitle("Updating")
                 .setView(box)
                 .setCancelable(false)
@@ -946,7 +1065,7 @@ public class MainActivity extends Activity {
 
     private void showUpdateDialog() {
         if (updUrl == null) return;
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, dlgStyle())
                 .setTitle("Update available")
                 .setMessage("A new version of Digital Wellbeing (build " + updBuild
                         + ") is ready. It downloads right here and installs over this one.")
@@ -981,14 +1100,14 @@ public class MainActivity extends Activity {
         l.setGravity(Gravity.CENTER);
         l.setPadding(dp(16), dp(16), dp(16), dp(8));
         l.addView(hp);
-        TextView hl = tv("hr", 15, Color.WHITE);
+        TextView hl = tv("hr", 15, th.text);
         hl.setPadding(dp(8), 0, dp(24), 0);
         l.addView(hl);
         l.addView(mp);
-        TextView ml = tv("min", 15, Color.WHITE);
+        TextView ml = tv("min", 15, th.text);
         ml.setPadding(dp(8), 0, 0, 0);
         l.addView(ml);
-        AlertDialog.Builder b = new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        AlertDialog.Builder b = new AlertDialog.Builder(this, dlgStyle())
                 .setTitle(m.label + " timer")
                 .setView(l)
                 .setPositiveButton("Set timer", new android.content.DialogInterface.OnClickListener() {
@@ -1012,7 +1131,7 @@ public class MainActivity extends Activity {
     }
 
     private void askService() {
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, dlgStyle())
                 .setTitle("Turn on app timers")
                 .setMessage("To enforce timers, turn on \"App timers\" in Accessibility settings (under Installed apps or Downloaded apps). It only sees which app is open.")
                 .setPositiveButton("Open settings", new android.content.DialogInterface.OnClickListener() {
@@ -1089,7 +1208,7 @@ public class MainActivity extends Activity {
             labels[i] = apps.get(i)[0];
             checked[i] = hid.contains(apps.get(i)[1]);
         }
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, dlgStyle())
                 .setTitle("Hide from stats")
                 .setMultiChoiceItems(labels, checked, new android.content.DialogInterface.OnMultiChoiceClickListener() {
                     @Override public void onClick(android.content.DialogInterface dlg, int which, boolean on) {

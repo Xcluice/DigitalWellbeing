@@ -24,7 +24,7 @@ import java.util.Calendar;
 import java.util.Locale;
 
 public class AppDetailActivity extends Activity {
-    private static final int C_BG = 0xFF1F1F1F, C_SUB = 0xFFBDC1C6;
+    private Themes.T th;
     private final Handler ui = new Handler(Looper.getMainLooper());
     private String pkg = "", label = "";
     private int color = 0xFF8AB4F8, accent;
@@ -33,6 +33,7 @@ public class AppDetailActivity extends Activity {
     private TextView totalTv, opensTv, peakTv, dateTv;
     private ImageView prev, next;
     private HourChart chart;
+    private TextView bgTv, bgSub, fgTv, lastTv, mobNote;
 
     private int dp(float v) { return (int) (v * d + 0.5f); }
 
@@ -48,6 +49,8 @@ public class AppDetailActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        th = Themes.get(this);
+        Themes.applyWindow(this);
         d = getResources().getDisplayMetrics().density;
         accent = Usage.accent(this);
         String p = getIntent().getStringExtra("pkg");
@@ -67,7 +70,7 @@ public class AppDetailActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(C_BG);
+        root.setBackgroundColor(th.bg);
 
         ImageView back = new ImageView(this);
         back.setImageResource(R.drawable.ic_back);
@@ -93,7 +96,7 @@ public class AppDetailActivity extends Activity {
         ImageView ic = new ImageView(this);
         if (icon != null) ic.setImageDrawable(icon);
         head.addView(ic, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        TextView name = tv(label, 22, Color.WHITE);
+        TextView name = tv(label, 22, th.text);
         name.setSingleLine(true);
         name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams np = new LinearLayout.LayoutParams(0, -2, 1f);
@@ -105,16 +108,16 @@ public class AppDetailActivity extends Activity {
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
         tp.topMargin = dp(24);
         col.addView(totalTv, tp);
-        opensTv = tv("", 14, C_SUB);
+        opensTv = tv("", 14, th.sub);
         LinearLayout.LayoutParams op = new LinearLayout.LayoutParams(-2, -2);
         op.topMargin = dp(8);
         col.addView(opensTv, op);
-        peakTv = tv("", 14, C_SUB);
+        peakTv = tv("", 14, th.sub);
         LinearLayout.LayoutParams pp = new LinearLayout.LayoutParams(-2, -2);
         pp.topMargin = dp(4);
         col.addView(peakTv, pp);
 
-        TextView ht = tv("Hourly usage", 14, C_SUB);
+        TextView ht = tv("Hourly usage", 14, th.sub);
         LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(-2, -2);
         hp.topMargin = dp(26);
         col.addView(ht, hp);
@@ -124,7 +127,7 @@ public class AppDetailActivity extends Activity {
         col.addView(chart, cp);
 
         FrameLayout dr = new FrameLayout(this);
-        dateTv = tv("", 15, Color.WHITE);
+        dateTv = tv("", 15, th.text);
         dr.addView(dateTv, new FrameLayout.LayoutParams(-2, -2, Gravity.CENTER));
         prev = arrow(R.drawable.ic_prev);
         FrameLayout.LayoutParams pl = new FrameLayout.LayoutParams(dp(40), dp(40), Gravity.START | Gravity.CENTER_VERTICAL);
@@ -143,6 +146,52 @@ public class AppDetailActivity extends Activity {
         LinearLayout.LayoutParams drp = new LinearLayout.LayoutParams(-1, dp(48));
         drp.topMargin = dp(14);
         col.addView(dr, drp);
+
+        TextView bt = tv("Background activity", 14, th.sub);
+        LinearLayout.LayoutParams btp = new LinearLayout.LayoutParams(-2, -2);
+        btp.topMargin = dp(28);
+        col.addView(bt, btp);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        GradientDrawable cg = new GradientDrawable();
+        cg.setColor(th.sheet);
+        cg.setCornerRadius(dp(16));
+        card.setBackground(cg);
+        bgTv = tv("\u2026", 18, th.text);
+        card.addView(bgTv);
+        bgSub = tv("", 13, th.sub);
+        LinearLayout.LayoutParams l1 = new LinearLayout.LayoutParams(-2, -2);
+        l1.topMargin = dp(4);
+        card.addView(bgSub, l1);
+        fgTv = tv("", 14, th.text);
+        LinearLayout.LayoutParams l2 = new LinearLayout.LayoutParams(-2, -2);
+        l2.topMargin = dp(14);
+        card.addView(fgTv, l2);
+        lastTv = tv("", 14, th.text);
+        LinearLayout.LayoutParams l3 = new LinearLayout.LayoutParams(-2, -2);
+        l3.topMargin = dp(8);
+        card.addView(lastTv, l3);
+        mobNote = tv("Tap to include mobile data", 13, accent);
+        mobNote.setVisibility(View.GONE);
+        mobNote.setPadding(0, dp(8), 0, dp(4));
+        mobNote.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                if (android.os.Build.VERSION.SDK_INT < 29) {
+                    requestPermissions(new String[]{"android.permission.READ_PHONE_STATE"}, 9);
+                }
+            }
+        });
+        LinearLayout.LayoutParams l4 = new LinearLayout.LayoutParams(-2, -2);
+        l4.topMargin = dp(6);
+        card.addView(mobNote, l4);
+        LinearLayout.LayoutParams cdp = new LinearLayout.LayoutParams(-1, -2);
+        cdp.topMargin = dp(10);
+        col.addView(card, cdp);
+        TextView foot = tv("Data the app used while it was not on screen. Android does not share other apps' battery or CPU use.", 12, th.sub);
+        LinearLayout.LayoutParams fp = new LinearLayout.LayoutParams(-2, -2);
+        fp.topMargin = dp(8);
+        col.addView(foot, fp);
 
         TextView info = tv("App info", 14, accent);
         info.setGravity(Gravity.CENTER);
@@ -164,6 +213,12 @@ public class AppDetailActivity extends Activity {
         col.addView(info, ip);
 
         setContentView(root);
+        load();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int code, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(code, perms, res);
         load();
     }
 
@@ -205,6 +260,7 @@ public class AppDetailActivity extends Activity {
         new Thread(new Runnable() {
             @Override public void run() {
                 final Usage.Detail det = Usage.detail(AppDetailActivity.this, pkg, start);
+                final NetUsage.R net = NetUsage.query(AppDetailActivity.this, pkg, start, start + 86400000L);
                 ui.post(new Runnable() {
                     @Override public void run() {
                         if (start != day.getTimeInMillis()) return;
@@ -220,6 +276,14 @@ public class AppDetailActivity extends Activity {
                         peakTv.setText(peak < 0 ? "No usage this day"
                                 : "Busiest hour: " + hourName(peak) + " \u00b7 " + Usage.fmtTotal(best));
                         chart.set(det.hours, color);
+                        bgTv.setText(NetUsage.fmt(net.bg()) + " in the background");
+                        bgSub.setText("Wi\u2011Fi " + NetUsage.fmt(net.wifiBg) + "  \u00b7  Mobile "
+                                + (net.mobileDenied ? "not allowed" : NetUsage.fmt(net.mobBg)));
+                        fgTv.setText("While open: " + NetUsage.fmt(net.fg()));
+                        lastTv.setText("Last used: " + (det.lastEnd > 0
+                                ? new SimpleDateFormat("h:mm a", Locale.getDefault()).format(new java.util.Date(det.lastEnd))
+                                : "\u2014"));
+                        mobNote.setVisibility(net.mobileDenied ? View.VISIBLE : View.GONE);
                     }
                 });
             }

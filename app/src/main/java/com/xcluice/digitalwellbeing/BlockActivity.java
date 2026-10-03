@@ -18,6 +18,8 @@ public class BlockActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        final Themes.T th = Themes.get(this);
+        Themes.applyWindow(this);
         pkg = getIntent().getStringExtra("pkg");
         if (pkg == null) pkg = "";
         final float d = getResources().getDisplayMetrics().density;
@@ -33,14 +35,14 @@ public class BlockActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(0xFF1F1F1F);
+        root.setBackgroundColor(th.bg);
         root.setPadding((int) (32 * d), (int) (110 * d), (int) (32 * d), (int) (32 * d));
 
         root.addView(ic, new LinearLayout.LayoutParams((int) (72 * d), (int) (72 * d)));
 
         TextView t = new TextView(this);
         t.setText(label + " timer is up");
-        t.setTextColor(Color.WHITE);
+        t.setTextColor(th.text);
         t.setTextSize(24);
         t.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
@@ -50,7 +52,7 @@ public class BlockActivity extends Activity {
         TextView s = new TextView(this);
         s.setText("You've reached your daily limit of " + Usage.fmtTotal(lim * 60000L)
                 + ". The timer resets at midnight.");
-        s.setTextColor(0xFFBDC1C6);
+        s.setTextColor(th.sub);
         s.setTextSize(15);
         s.setGravity(Gravity.CENTER);
         s.setLineSpacing(0, 1.2f);
