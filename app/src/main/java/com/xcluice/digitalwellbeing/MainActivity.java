@@ -416,6 +416,9 @@ public class MainActivity extends Activity {
                     @Override public void onClick(View v) {
                         Themes.set(MainActivity.this, idx);
                         dg[0].dismiss();
+                        new Thread(new Runnable() {
+                            @Override public void run() { DWWidget.refreshAll(MainActivity.this); }
+                        }).start();
                         recreate();
                     }
                 });

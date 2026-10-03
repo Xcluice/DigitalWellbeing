@@ -1,60 +1,72 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:paddingStart="16dp"
-    android:paddingTop="10dp"
-    android:paddingEnd="16dp"
-    android:paddingBottom="10dp">
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/wbg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_shape" />
 
     <LinearLayout
-        android:id="@+id/left"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="16dp"
+        android:paddingBottom="10dp">
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:id="@+id/left"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <TextView
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Screen time"
-                android:textColor="@color/widget_text"
-                android:textSize="15sp" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="6dp"
-                android:src="@drawable/ic_chart" />
+                <TextView
+                    android:id="@+id/title"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Screen time"
+                    android:textColor="#FF202124"
+                    android:textSize="15sp" />
+
+                <ImageView
+                    android:id="@+id/chartic"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="6dp"
+                    android:src="@drawable/ic_chart" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:maxLines="1"
+                android:text="0m"
+                android:textColor="#FF202124"
+                android:textSize="34sp" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/time"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:maxLines="1"
-            android:text="0m"
-            android:textColor="@color/widget_text"
-            android:textSize="34sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_weight="1.2"
-        android:orientation="vertical">
+            android:layout_marginStart="12dp"
+            android:layout_weight="1.2"
+            android:orientation="vertical">
 
         <LinearLayout
             android:id="@+id/row1"
@@ -64,15 +76,26 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/pill1"
+            <FrameLayout
                 android:layout_width="40dp"
-                android:layout_height="20dp"
-                android:background="@drawable/pill_bg1"
-                android:gravity="center"
-                android:maxLines="1"
-                android:textColor="@color/pill1_fg"
-                android:textSize="11sp" />
+                android:layout_height="20dp">
+
+                <ImageView
+                    android:id="@+id/pillbg1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/pill_shape" />
+
+                <TextView
+                    android:id="@+id/pill1"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="#FF202124"
+                    android:textSize="11sp" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/name1"
@@ -82,7 +105,7 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/widget_text"
+                android:textColor="#FF202124"
                 android:textSize="13sp" />
         </LinearLayout>
 
@@ -94,15 +117,26 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/pill2"
+            <FrameLayout
                 android:layout_width="40dp"
-                android:layout_height="20dp"
-                android:background="@drawable/pill_bg2"
-                android:gravity="center"
-                android:maxLines="1"
-                android:textColor="@color/pill2_fg"
-                android:textSize="11sp" />
+                android:layout_height="20dp">
+
+                <ImageView
+                    android:id="@+id/pillbg2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/pill_shape" />
+
+                <TextView
+                    android:id="@+id/pill2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="#FF202124"
+                    android:textSize="11sp" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/name2"
@@ -112,7 +146,7 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/widget_text"
+                android:textColor="#FF202124"
                 android:textSize="13sp" />
         </LinearLayout>
 
@@ -124,15 +158,26 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/pill3"
+            <FrameLayout
                 android:layout_width="40dp"
-                android:layout_height="20dp"
-                android:background="@drawable/pill_bg3"
-                android:gravity="center"
-                android:maxLines="1"
-                android:textColor="@color/pill3_fg"
-                android:textSize="11sp" />
+                android:layout_height="20dp">
+
+                <ImageView
+                    android:id="@+id/pillbg3"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/pill_shape" />
+
+                <TextView
+                    android:id="@+id/pill3"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="#FF202124"
+                    android:textSize="11sp" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/name3"
@@ -142,7 +187,7 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/widget_text"
+                android:textColor="#FF202124"
                 android:textSize="13sp" />
         </LinearLayout>
 
@@ -154,15 +199,26 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/pill4"
+            <FrameLayout
                 android:layout_width="40dp"
-                android:layout_height="20dp"
-                android:background="@drawable/pill_bg3"
-                android:gravity="center"
-                android:maxLines="1"
-                android:textColor="@color/pill3_fg"
-                android:textSize="11sp" />
+                android:layout_height="20dp">
+
+                <ImageView
+                    android:id="@+id/pillbg4"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/pill_shape" />
+
+                <TextView
+                    android:id="@+id/pill4"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="#FF202124"
+                    android:textSize="11sp" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/name4"
@@ -172,7 +228,7 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/widget_text"
+                android:textColor="#FF202124"
                 android:textSize="13sp" />
         </LinearLayout>
 
@@ -184,15 +240,26 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/pill5"
+            <FrameLayout
                 android:layout_width="40dp"
-                android:layout_height="20dp"
-                android:background="@drawable/pill_bg3"
-                android:gravity="center"
-                android:maxLines="1"
-                android:textColor="@color/pill3_fg"
-                android:textSize="11sp" />
+                android:layout_height="20dp">
+
+                <ImageView
+                    android:id="@+id/pillbg5"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="fitXY"
+                    android:src="@drawable/pill_shape" />
+
+                <TextView
+                    android:id="@+id/pill5"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:textColor="#FF202124"
+                    android:textSize="11sp" />
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/name5"
@@ -202,8 +269,9 @@
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
-                android:textColor="@color/widget_text"
+                android:textColor="#FF202124"
                 android:textSize="13sp" />
         </LinearLayout>
+        </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>

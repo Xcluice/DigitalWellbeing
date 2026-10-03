@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Color;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
@@ -22,6 +23,7 @@ import java.util.Map;
 public class DWWidget extends AppWidgetProvider {
     private static final int[] ROW = {R.id.row1, R.id.row2, R.id.row3, R.id.row4, R.id.row5};
     private static final int[] PILL = {R.id.pill1, R.id.pill2, R.id.pill3, R.id.pill4, R.id.pill5};
+    private static final int[] PILLBG = {R.id.pillbg1, R.id.pillbg2, R.id.pillbg3, R.id.pillbg4, R.id.pillbg5};
     private static final int[] NAME = {R.id.name1, R.id.name2, R.id.name3, R.id.name4, R.id.name5};
 
     static final String ACTION_REFRESH = "com.xcluice.digitalwellbeing.REFRESH";
@@ -64,6 +66,12 @@ public class DWWidget extends AppWidgetProvider {
         AppWidgetManager m = AppWidgetManager.getInstance(c);
         int[] ids = m.getAppWidgetIds(new ComponentName(c, DWWidget.class));
         if (ids.length > 0) update(c, m, ids);
+    }
+
+    /** Readable text colour for a given background. */
+    private static int on(int bg) {
+        double l = (0.299 * Color.red(bg) + 0.587 * Color.green(bg) + 0.114 * Color.blue(bg)) / 255.0;
+        return l > 0.6 ? 0xFF1B1C1A : 0xFFFFFFFF;
     }
 
     static class Row { String pkg; long ms; }
@@ -109,6 +117,13 @@ public class DWWidget extends AppWidgetProvider {
                 PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT);
         boolean portrait = c.getResources().getConfiguration().orientation != Configuration.ORIENTATION_LANDSCAPE;
 
+        // colours follow the theme and accent picked in the app
+        Themes.T th = Themes.get(c);
+        int acc = Usage.accent(c);
+        int[] pbg = {th.text, th.grid, acc, acc, acc};
+        int[] pfg = new int[5];
+        for (int i = 0; i < 5; i++) pfg[i] = on(pbg[i]);
+
         for (int id : ids) {
             Bundle o = m.getAppWidgetOptions(id);
             int w = portrait ? o.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH, 250)
@@ -119,6 +134,15 @@ public class DWWidget extends AppWidgetProvider {
             rows = Math.min(rows, top.size());
 
             RemoteViews rv = new RemoteViews(c.getPackageName(), R.layout.widget);
+            rv.setInt(R.id.wbg, "setColorFilter", th.bg);
+            rv.setTextColor(R.id.title, th.text);
+            rv.setTextColor(R.id.time, th.text);
+            rv.setInt(R.id.chartic, "setColorFilter", th.sub);
+            for (int i = 0; i < 5; i++) {
+                rv.setInt(PILLBG[i], "setColorFilter", pbg[i]);
+                rv.setTextColor(PILL[i], pfg[i]);
+                rv.setTextColor(NAME[i], th.text);
+            }
             rv.setTextViewText(R.id.time, total < 0 ? "Allow access" : Usage.fmtShort(total));
             rv.setTextViewTextSize(R.id.time, TypedValue.COMPLEX_UNIT_SP,
                     total < 0 ? 18 : (w < 200 ? 26 : (h < 130 ? 34 : 40)));
