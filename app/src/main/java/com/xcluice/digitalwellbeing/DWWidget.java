@@ -8,7 +8,12 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Path;
+import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.util.TypedValue;
 import android.view.View;
@@ -24,7 +29,7 @@ public class DWWidget extends AppWidgetProvider {
     private static final int[] ROW = {R.id.row1, R.id.row2, R.id.row3, R.id.row4, R.id.row5};
     private static final int[] PILL = {R.id.pill1, R.id.pill2, R.id.pill3, R.id.pill4, R.id.pill5};
     private static final int[] PILLBG = {R.id.pillbg1, R.id.pillbg2, R.id.pillbg3, R.id.pillbg4, R.id.pillbg5};
-    private static final int[] NAME = {R.id.name1, R.id.name2, R.id.name3, R.id.name4, R.id.name5};
+    private static final int[] ICON = {R.id.icon1, R.id.icon2, R.id.icon3, R.id.icon4, R.id.icon5};
 
     static final String ACTION_REFRESH = "com.xcluice.digitalwellbeing.REFRESH";
 
@@ -74,6 +79,18 @@ public class DWWidget extends AppWidgetProvider {
         return l > 0.6 ? 0xFF1B1C1A : 0xFFFFFFFF;
     }
 
+    private static Bitmap roundIcon(Drawable icon) {
+        int s = 96;
+        Bitmap b = Bitmap.createBitmap(s, s, Bitmap.Config.ARGB_8888);
+        Canvas cv = new Canvas(b);
+        Path clip = new Path();
+        clip.addCircle(s / 2f, s / 2f, s / 2f, Path.Direction.CW);
+        cv.clipPath(clip);
+        icon.setBounds(0, 0, s, s);
+        icon.draw(cv);
+        return b;
+    }
+
     static class Row { String pkg; long ms; }
 
     static void update(Context c, AppWidgetManager m, int[] ids) {
@@ -99,13 +116,13 @@ public class DWWidget extends AppWidgetProvider {
         if (top.size() > 5) top = new ArrayList<>(top.subList(0, 5));
 
         PackageManager pm = c.getPackageManager();
-        String[] names = new String[top.size()];
+        Bitmap[] icons = new Bitmap[top.size()];
         String[] times = new String[top.size()];
         for (int i = 0; i < top.size(); i++) {
             try {
-                names[i] = String.valueOf(pm.getApplicationLabel(pm.getApplicationInfo(top.get(i).pkg, 0)));
+                icons[i] = roundIcon(pm.getApplicationIcon(top.get(i).pkg));
             } catch (Exception e) {
-                names[i] = top.get(i).pkg;
+                icons[i] = null;
             }
             times[i] = Usage.fmtShort(top.get(i).ms);
         }
@@ -141,7 +158,6 @@ public class DWWidget extends AppWidgetProvider {
             for (int i = 0; i < 5; i++) {
                 rv.setInt(PILLBG[i], "setColorFilter", pbg[i]);
                 rv.setTextColor(PILL[i], pfg[i]);
-                rv.setTextColor(NAME[i], th.text);
             }
             rv.setTextViewText(R.id.time, total < 0 ? "Allow access" : Usage.fmtShort(total));
             rv.setTextViewTextSize(R.id.time, TypedValue.COMPLEX_UNIT_SP,
@@ -150,7 +166,7 @@ public class DWWidget extends AppWidgetProvider {
                 if (i < rows) {
                     rv.setViewVisibility(ROW[i], View.VISIBLE);
                     rv.setTextViewText(PILL[i], times[i]);
-                    rv.setTextViewText(NAME[i], names[i]);
+                    if (icons[i] != null) rv.setImageViewBitmap(ICON[i], icons[i]);
                 } else {
                     rv.setViewVisibility(ROW[i], View.GONE);
                 }

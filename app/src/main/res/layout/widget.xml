@@ -68,210 +68,190 @@
             android:layout_weight="1.2"
             android:orientation="vertical">
 
-        <LinearLayout
-            android:id="@+id/row1"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="3dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            <LinearLayout
+                android:id="@+id/row1"
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <FrameLayout
-                android:layout_width="40dp"
-                android:layout_height="20dp">
+                <FrameLayout
+                    android:layout_width="44dp"
+                    android:layout_height="22dp">
 
-                <ImageView
-                    android:id="@+id/pillbg1"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="fitXY"
-                    android:src="@drawable/pill_shape" />
+                    <ImageView
+                        android:id="@+id/pillbg1"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/pill_shape" />
 
-                <TextView
-                    android:id="@+id/pill1"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:maxLines="1"
-                    android:textColor="#FF202124"
-                    android:textSize="11sp" />
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/name1"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#FF202124"
-                android:textSize="13sp" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/row2"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="3dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <FrameLayout
-                android:layout_width="40dp"
-                android:layout_height="20dp">
+                    <TextView
+                        android:id="@+id/pill1"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:textColor="#FF202124"
+                        android:textSize="11sp" />
+                </FrameLayout>
 
                 <ImageView
-                    android:id="@+id/pillbg2"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="fitXY"
-                    android:src="@drawable/pill_shape" />
+                    android:id="@+id/icon1"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="8dp"
+                    android:scaleType="fitCenter" />
+            </LinearLayout>
 
-                <TextView
-                    android:id="@+id/pill2"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:maxLines="1"
-                    android:textColor="#FF202124"
-                    android:textSize="11sp" />
-            </FrameLayout>
+            <LinearLayout
+                android:id="@+id/row2"
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/name2"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#FF202124"
-                android:textSize="13sp" />
-        </LinearLayout>
+                <FrameLayout
+                    android:layout_width="44dp"
+                    android:layout_height="22dp">
 
-        <LinearLayout
-            android:id="@+id/row3"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="3dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+                    <ImageView
+                        android:id="@+id/pillbg2"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/pill_shape" />
 
-            <FrameLayout
-                android:layout_width="40dp"
-                android:layout_height="20dp">
+                    <TextView
+                        android:id="@+id/pill2"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:textColor="#FF202124"
+                        android:textSize="11sp" />
+                </FrameLayout>
 
                 <ImageView
-                    android:id="@+id/pillbg3"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="fitXY"
-                    android:src="@drawable/pill_shape" />
+                    android:id="@+id/icon2"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="8dp"
+                    android:scaleType="fitCenter" />
+            </LinearLayout>
 
-                <TextView
-                    android:id="@+id/pill3"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:maxLines="1"
-                    android:textColor="#FF202124"
-                    android:textSize="11sp" />
-            </FrameLayout>
+            <LinearLayout
+                android:id="@+id/row3"
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/name3"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#FF202124"
-                android:textSize="13sp" />
-        </LinearLayout>
+                <FrameLayout
+                    android:layout_width="44dp"
+                    android:layout_height="22dp">
 
-        <LinearLayout
-            android:id="@+id/row4"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="3dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+                    <ImageView
+                        android:id="@+id/pillbg3"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/pill_shape" />
 
-            <FrameLayout
-                android:layout_width="40dp"
-                android:layout_height="20dp">
+                    <TextView
+                        android:id="@+id/pill3"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:textColor="#FF202124"
+                        android:textSize="11sp" />
+                </FrameLayout>
 
                 <ImageView
-                    android:id="@+id/pillbg4"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="fitXY"
-                    android:src="@drawable/pill_shape" />
+                    android:id="@+id/icon3"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="8dp"
+                    android:scaleType="fitCenter" />
+            </LinearLayout>
 
-                <TextView
-                    android:id="@+id/pill4"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:maxLines="1"
-                    android:textColor="#FF202124"
-                    android:textSize="11sp" />
-            </FrameLayout>
+            <LinearLayout
+                android:id="@+id/row4"
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/name4"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#FF202124"
-                android:textSize="13sp" />
-        </LinearLayout>
+                <FrameLayout
+                    android:layout_width="44dp"
+                    android:layout_height="22dp">
 
-        <LinearLayout
-            android:id="@+id/row5"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="3dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+                    <ImageView
+                        android:id="@+id/pillbg4"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/pill_shape" />
 
-            <FrameLayout
-                android:layout_width="40dp"
-                android:layout_height="20dp">
+                    <TextView
+                        android:id="@+id/pill4"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:textColor="#FF202124"
+                        android:textSize="11sp" />
+                </FrameLayout>
 
                 <ImageView
-                    android:id="@+id/pillbg5"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:scaleType="fitXY"
-                    android:src="@drawable/pill_shape" />
+                    android:id="@+id/icon4"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="8dp"
+                    android:scaleType="fitCenter" />
+            </LinearLayout>
 
-                <TextView
-                    android:id="@+id/pill5"
-                    android:layout_width="match_parent"
-                    android:layout_height="match_parent"
-                    android:gravity="center"
-                    android:maxLines="1"
-                    android:textColor="#FF202124"
-                    android:textSize="11sp" />
-            </FrameLayout>
+            <LinearLayout
+                android:id="@+id/row5"
+                android:layout_width="match_parent"
+                android:layout_height="22dp"
+                android:layout_marginTop="3dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/name5"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:textColor="#FF202124"
-                android:textSize="13sp" />
-        </LinearLayout>
+                <FrameLayout
+                    android:layout_width="44dp"
+                    android:layout_height="22dp">
+
+                    <ImageView
+                        android:id="@+id/pillbg5"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:scaleType="fitXY"
+                        android:src="@drawable/pill_shape" />
+
+                    <TextView
+                        android:id="@+id/pill5"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:maxLines="1"
+                        android:textColor="#FF202124"
+                        android:textSize="11sp" />
+                </FrameLayout>
+
+                <ImageView
+                    android:id="@+id/icon5"
+                    android:layout_width="22dp"
+                    android:layout_height="22dp"
+                    android:layout_marginStart="8dp"
+                    android:scaleType="fitCenter" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </FrameLayout>
