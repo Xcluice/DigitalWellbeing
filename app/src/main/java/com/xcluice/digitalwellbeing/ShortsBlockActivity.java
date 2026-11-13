@@ -97,11 +97,24 @@ public class ShortsBlockActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(th.bg);
-        root.setPadding((int) (32 * d), (int) (96 * d), (int) (32 * d), (int) (32 * d));
+        root.setPadding((int) (32 * d), (int) (80 * d), (int) (32 * d), (int) (32 * d));
 
         final LockIcon icon = new LockIcon(this, th.text, th.bg, th.grid);
         root.addView(icon, new LinearLayout.LayoutParams((int) (170 * d), (int) (170 * d)));
+
+        final TextView big = new TextView(this);
+        big.setText("0");
+        big.setTextColor(th.text);
+        big.setTextSize(52);
+        big.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams bgp = new LinearLayout.LayoutParams(-2, -2);
+        bgp.topMargin = (int) (6 * d);
+        root.addView(big, bgp);
+        TextView cap = new TextView(this);
+        cap.setText("Shorts watched today");
+        cap.setTextColor(th.sub);
+        cap.setTextSize(13);
+        root.addView(cap, new LinearLayout.LayoutParams(-2, -2));
 
         TextView t = new TextView(this);
         t.setText("Shorts are done for today");
@@ -109,12 +122,11 @@ public class ShortsBlockActivity extends Activity {
         t.setTextSize(26);
         t.setGravity(Gravity.CENTER);
         LinearLayout.LayoutParams tp = new LinearLayout.LayoutParams(-2, -2);
-        tp.topMargin = (int) (26 * d);
+        tp.topMargin = (int) (24 * d);
         root.addView(t, tp);
 
         TextView s = new TextView(this);
-        s.setText("You've scrolled through " + Math.max(count, limit) + " Shorts, which is your limit for today. "
-                + "Time for something with a beginning, a middle and an end.\n\n"
+        s.setText("That's your limit for today. Time for something with a beginning, a middle and an end.\n\n"
                 + "Regular videos still work. Shorts unlock again at midnight.");
         s.setTextColor(th.sub);
         s.setTextSize(15);
@@ -141,7 +153,13 @@ public class ShortsBlockActivity extends Activity {
         op.topMargin = (int) (44 * d);
         root.addView(ok, op);
 
-        setContentView(root);
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+        frame.setBackgroundColor(th.bg);
+        frame.addView(new Fx.Particles(this, th.text, 26), new android.widget.FrameLayout.LayoutParams(-1, -1));
+        frame.addView(root, new android.widget.FrameLayout.LayoutParams(-1, -1));
+        setContentView(frame);
+        Fx.press(ok);
+        Fx.countUp(big, 0, Math.max(count, limit), 1200, "");
 
         // Motion: icon pops in, rings pulse, slash draws across, text rises in one by one.
         DecelerateInterpolator decel = new DecelerateInterpolator(1.8f);
@@ -173,14 +191,25 @@ public class ShortsBlockActivity extends Activity {
                 icon.invalidate();
             }
         });
+        sl.addListener(new android.animation.AnimatorListenerAdapter() {
+            @Override public void onAnimationEnd(android.animation.Animator an) {
+                // The slash lands: a quick shake, then the icon settles into a gentle float.
+                android.animation.ObjectAnimator sh = android.animation.ObjectAnimator.ofFloat(icon, "translationX",
+                        0f, -14 * d, 14 * d, -9 * d, 9 * d, -4 * d, 0f);
+                sh.setDuration(420);
+                sh.start();
+                Fx.loop(icon, "translationY", -6 * d, 6 * d, 1900);
+                Fx.loop(icon, "rotation", -3f, 3f, 2700);
+            }
+        });
         sl.start();
 
-        View[] rise = {t, s, ok};
+        View[] rise = {big, cap, t, s, ok};
         for (int i = 0; i < rise.length; i++) {
             rise[i].setAlpha(0f);
             rise[i].setTranslationY(22 * d);
-            rise[i].animate().alpha(1f).translationY(0f).setStartDelay(350 + i * 130L)
-                    .setDuration(420).setInterpolator(decel).start();
+            rise[i].animate().alpha(1f).translationY(0f).setStartDelay(300 + i * 110L)
+                    .setDuration(460).setInterpolator(i == rise.length - 1 ? new OvershootInterpolator(1.6f) : decel).start();
         }
     }
 

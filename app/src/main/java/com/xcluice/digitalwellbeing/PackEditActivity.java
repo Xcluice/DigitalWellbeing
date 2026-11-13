@@ -1,5 +1,6 @@
 package com.xcluice.digitalwellbeing;
 
+import android.animation.ValueAnimator;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -44,7 +45,8 @@ public class PackEditActivity extends Activity {
     private int limit = 60;
     private final Set<String> sel = new LinkedHashSet<>();
     private EditText nameEt;
-    private TextView limitTv, appsLabel;
+    private TextView limitTv, appsLabel, saveBtn;
+    private int shownLimit;
     private LinearLayout appList;
 
     private int dp(float v) { return (int) (v * d + 0.5f); }
@@ -160,7 +162,9 @@ public class PackEditActivity extends Activity {
         updateCount();
 
         // Save
-        TextView save = tv("Save pack", 16, th.bg);
+        final TextView save = tv("Save pack", 16, th.bg);
+        saveBtn = save;
+        Fx.press(save);
         save.setGravity(Gravity.CENTER);
         GradientDrawable sg = new GradientDrawable();
         sg.setColor(th.text);
@@ -198,6 +202,7 @@ public class PackEditActivity extends Activity {
         g.setCornerRadius(dp(18));
         g.setStroke(dp(1), th.div);
         t.setBackground(g);
+        Fx.press(t);
         t.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
                 limit = Math.max(5, Math.min(24 * 60, limit + delta));
@@ -208,7 +213,20 @@ public class PackEditActivity extends Activity {
     }
 
     private void updateLimit(boolean pop) {
-        limitTv.setText(Usage.fmtTotal(limit * 60000L));
+        if (pop && shownLimit != limit) {
+            ValueAnimator va = ValueAnimator.ofInt(shownLimit, limit);
+            va.setDuration(260);
+            va.setInterpolator(decel);
+            va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override public void onAnimationUpdate(ValueAnimator a) {
+                    limitTv.setText(Usage.fmtTotal((int) a.getAnimatedValue() * 60000L));
+                }
+            });
+            va.start();
+        } else {
+            limitTv.setText(Usage.fmtTotal(limit * 60000L));
+        }
+        shownLimit = limit;
         if (pop) {
             limitTv.setScaleX(0.94f);
             limitTv.setScaleY(0.94f);
@@ -275,8 +293,20 @@ public class PackEditActivity extends Activity {
             paint(mark, tick, sel.contains(pkg));
             row.addView(mark, new LinearLayout.LayoutParams(dp(26), dp(26)));
 
+            final GradientDrawable flash = new GradientDrawable();
+            flash.setColor(th.sheet);
+            flash.setCornerRadius(dp(12));
+            flash.setAlpha(0);
+            row.setBackground(flash);
+            row.setPadding(dp(8), dp(10), dp(8), dp(10));
             row.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
+                    ValueAnimator fa = ValueAnimator.ofInt(0, 255, 0);
+                    fa.setDuration(420);
+                    fa.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                        @Override public void onAnimationUpdate(ValueAnimator a) { flash.setAlpha((int) a.getAnimatedValue()); }
+                    });
+                    fa.start();
                     boolean on = !sel.contains(pkg);
                     if (on) sel.add(pkg); else sel.remove(pkg);
                     paint(mark, tick, on);
@@ -329,7 +359,14 @@ public class PackEditActivity extends Activity {
         }
         if (!found) all.add(pack);
         Usage.savePacks(this, all);
-        if (!Usage.serviceOn(this)) askService(); else finish();
+        saveBtn.setText("Saved \u2713");
+        saveBtn.animate().scaleX(1.06f).scaleY(1.06f).setDuration(160)
+                .setInterpolator(new OvershootInterpolator(3f)).start();
+        ui.postDelayed(new Runnable() {
+            @Override public void run() {
+                if (!Usage.serviceOn(PackEditActivity.this)) askService(); else finish();
+            }
+        }, 480);
     }
 
     private int dlgStyle() {

@@ -1105,6 +1105,7 @@ public class MainActivity extends Activity {
         g.setCornerRadius(dp(20));
         g.setStroke(dp(1), th.div);
         t.setBackground(g);
+        Fx.press(t);
         return t;
     }
 

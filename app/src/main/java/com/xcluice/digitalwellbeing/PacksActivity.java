@@ -76,6 +76,7 @@ public class PacksActivity extends Activity {
         add.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { openEdit(null); }
         });
+        Fx.press(add);
         LinearLayout.LayoutParams alp = new LinearLayout.LayoutParams(-2, -2);
         alp.rightMargin = dp(20);
         bar.addView(add, alp);
@@ -139,9 +140,20 @@ public class PacksActivity extends Activity {
         fadeIn(intro, 0);
 
         if (packs.isEmpty()) {
+            FrameLayout eh = new FrameLayout(this);
+            eh.addView(new Fx.Rings(this, th.grid), new FrameLayout.LayoutParams(-1, -1));
+            TextView plus = tv("+", 44, th.text);
+            plus.setGravity(Gravity.CENTER);
+            eh.addView(plus, new FrameLayout.LayoutParams(-1, -1));
+            LinearLayout.LayoutParams ehp = new LinearLayout.LayoutParams(dp(170), dp(170));
+            ehp.topMargin = dp(24);
+            ehp.gravity = Gravity.CENTER_HORIZONTAL;
+            box.addView(eh, ehp);
+            Fx.loop(eh, "translationY", -dp(5), dp(5), 1900);
+            fadeIn(eh, 1);
             TextView e = tv("No packs yet", 18, th.text);
             LinearLayout.LayoutParams ep = new LinearLayout.LayoutParams(-2, -2);
-            ep.topMargin = dp(48);
+            ep.topMargin = dp(8);
             ep.gravity = Gravity.CENTER_HORIZONTAL;
             box.addView(e, ep);
             TextView e2 = tv("Tap \"New pack\" to create one, for example Social media with a 1 hour limit.", 14, th.sub);
@@ -268,6 +280,9 @@ public class PacksActivity extends Activity {
         c.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { openEdit(k.id); }
         });
+        Fx.press(c);
+        if (locked) Fx.loop(fill, "alpha", 0.45f, 1f, 900);
+        else if (frac > 0f) Fx.loop(fill, "alpha", 0.8f, 1f, 1600);
         fadeIn(c, idx);
         return c;
     }

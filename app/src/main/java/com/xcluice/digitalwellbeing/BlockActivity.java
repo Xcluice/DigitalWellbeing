@@ -39,10 +39,14 @@ public class BlockActivity extends Activity {
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setGravity(Gravity.CENTER_HORIZONTAL);
-        root.setBackgroundColor(th.bg);
-        root.setPadding((int) (32 * d), (int) (110 * d), (int) (32 * d), (int) (32 * d));
+        root.setPadding((int) (32 * d), (int) (90 * d), (int) (32 * d), (int) (32 * d));
 
-        root.addView(ic, new LinearLayout.LayoutParams((int) (72 * d), (int) (72 * d)));
+        final android.widget.FrameLayout holder = new android.widget.FrameLayout(this);
+        holder.addView(new Fx.Rings(this, th.grid), new android.widget.FrameLayout.LayoutParams(-1, -1));
+        android.widget.FrameLayout.LayoutParams icp = new android.widget.FrameLayout.LayoutParams((int) (72 * d), (int) (72 * d));
+        icp.gravity = Gravity.CENTER;
+        holder.addView(ic, icp);
+        root.addView(holder, new LinearLayout.LayoutParams((int) (190 * d), (int) (190 * d)));
 
         TextView t = new TextView(this);
         t.setText(pack != null ? pack.name + " pack is locked" : label + " timer is up");
@@ -102,7 +106,14 @@ public class BlockActivity extends Activity {
         ip.topMargin = (int) (8 * d);
         root.addView(ign, ip);
 
-        setContentView(root);
+        android.widget.FrameLayout frame = new android.widget.FrameLayout(this);
+        frame.setBackgroundColor(th.bg);
+        frame.addView(new Fx.Particles(this, th.text, 22), new android.widget.FrameLayout.LayoutParams(-1, -1));
+        frame.addView(root, new android.widget.FrameLayout.LayoutParams(-1, -1));
+        setContentView(frame);
+        Fx.press(close);
+        Fx.press(ign);
+        Fx.loop(holder, "translationY", -5 * d, 5 * d, 2000);
 
         // Entrance motion: icon pops in, then the text and buttons rise one after another.
         ic.setAlpha(0f);
