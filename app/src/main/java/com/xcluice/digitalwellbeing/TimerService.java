@@ -144,7 +144,12 @@ public class TimerService extends AccessibilityService {
         lastKick = now;
         inShorts = false;
         performGlobalAction(GLOBAL_ACTION_BACK);
-        Toast.makeText(this, "Shorts limit reached for today", Toast.LENGTH_SHORT).show();
+        h.postDelayed(new Runnable() {
+            @Override public void run() {
+                startActivity(new Intent(TimerService.this, ShortsBlockActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+            }
+        }, 150);
     }
 
     // ---- Widget

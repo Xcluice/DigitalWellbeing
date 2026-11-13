@@ -33,6 +33,12 @@
             android:exported="false" />
 
         <activity
+            android:name=".ShortsBlockActivity"
+            android:launchMode="singleTop"
+            android:excludeFromRecents="true"
+            android:exported="false" />
+
+        <activity
             android:name=".PacksActivity"
             android:exported="false" />
 

@@ -69,11 +69,11 @@ public class BlockActivity extends Activity {
 
         TextView close = new TextView(this);
         close.setText("Close app");
-        close.setTextColor(0xFF1F1F1F);
+        close.setTextColor(th.bg);
         close.setTextSize(15);
         close.setGravity(Gravity.CENTER);
         GradientDrawable g = new GradientDrawable();
-        g.setColor(Usage.accent(this));
+        g.setColor(th.text);
         g.setCornerRadius(24 * d);
         close.setBackground(g);
         close.setPadding((int) (40 * d), (int) (13 * d), (int) (40 * d), (int) (13 * d));
@@ -86,7 +86,7 @@ public class BlockActivity extends Activity {
 
         TextView ign = new TextView(this);
         ign.setText(pack != null ? "Ignore pack for today" : "Ignore timer for today");
-        ign.setTextColor(Usage.accent(this));
+        ign.setTextColor(th.sub);
         ign.setTextSize(14);
         ign.setPadding((int) (20 * d), (int) (16 * d), (int) (20 * d), (int) (16 * d));
         ign.setOnClickListener(new View.OnClickListener() {
@@ -103,6 +103,20 @@ public class BlockActivity extends Activity {
         root.addView(ign, ip);
 
         setContentView(root);
+
+        // Entrance motion: icon pops in, then the text and buttons rise one after another.
+        ic.setAlpha(0f);
+        ic.setScaleX(0.5f);
+        ic.setScaleY(0.5f);
+        ic.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(520)
+                .setInterpolator(new android.view.animation.OvershootInterpolator(2.2f)).start();
+        View[] rise = {t, s, close, ign};
+        for (int i = 0; i < rise.length; i++) {
+            rise[i].setAlpha(0f);
+            rise[i].setTranslationY(22 * d);
+            rise[i].animate().alpha(1f).translationY(0f).setStartDelay(300 + i * 120L).setDuration(420)
+                    .setInterpolator(new android.view.animation.DecelerateInterpolator(1.8f)).start();
+        }
     }
 
     private void goHome() {

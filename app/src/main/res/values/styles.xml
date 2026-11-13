@@ -8,6 +8,7 @@
         <item name="android:colorBackground">@color/bg</item>
         <item name="android:statusBarColor">@color/bg</item>
         <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:colorAccent">#FF9E9E9E</item>
     </style>
     <style name="SheetAnim">
         <item name="android:windowEnterAnimation">@anim/sheet_in</item>
