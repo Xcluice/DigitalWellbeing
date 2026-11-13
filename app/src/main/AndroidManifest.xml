@@ -33,6 +33,15 @@
             android:exported="false" />
 
         <activity
+            android:name=".PacksActivity"
+            android:exported="false" />
+
+        <activity
+            android:name=".PackEditActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:exported="false" />
+
+        <activity
             android:name=".BlockActivity"
             android:exported="false"
             android:excludeFromRecents="true"

@@ -9,9 +9,14 @@ import android.content.SharedPreferences;
 import android.content.pm.ResolveInfo;
 import android.os.Process;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -326,6 +331,113 @@ final class Usage {
     static boolean ignored(Context c, String pkg) {
         return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("ign_" + pkg, 0)
                 == midnight(Calendar.getInstance()).getTimeInMillis();
+    }
+
+    // ---- YouTube Shorts counter
+    static boolean shortsOn(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getBoolean("sh_on", true);
+    }
+
+    static int shortsLimit(Context c) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getInt("sh_lim", 50);
+    }
+
+    static void setShorts(Context c, boolean on, int limit) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putBoolean("sh_on", on).putInt("sh_lim", Math.max(1, limit)).apply();
+    }
+
+    static synchronized int shortsCount(Context c) {
+        SharedPreferences p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        return p.getLong("sh_day", 0) == midnight(Calendar.getInstance()).getTimeInMillis()
+                ? p.getInt("sh_cnt", 0) : 0;
+    }
+
+    static synchronized int shortsAdd(Context c) {
+        SharedPreferences p = c.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        long m = midnight(Calendar.getInstance()).getTimeInMillis();
+        int n = (p.getLong("sh_day", 0) == m ? p.getInt("sh_cnt", 0) : 0) + 1;
+        p.edit().putLong("sh_day", m).putInt("sh_cnt", n).apply();
+        return n;
+    }
+
+    static synchronized void shortsReset(Context c) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("sh_cnt").remove("sh_day").apply();
+    }
+
+    // ---- App packs: a group of apps that share one daily time limit
+    static class Pack {
+        String id = Long.toString(System.currentTimeMillis(), 36);
+        String name = "";
+        int limit = 60;
+        Set<String> pkgs = new LinkedHashSet<>();
+    }
+
+    static List<Pack> packs(Context c) {
+        List<Pack> out = new ArrayList<>();
+        try {
+            JSONArray a = new JSONArray(c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString("packs", "[]"));
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject o = a.getJSONObject(i);
+                Pack k = new Pack();
+                k.id = o.getString("id");
+                k.name = o.optString("name", "Pack");
+                k.limit = o.optInt("limit", 60);
+                JSONArray ps = o.optJSONArray("pkgs");
+                if (ps != null) for (int j = 0; j < ps.length(); j++) k.pkgs.add(ps.getString(j));
+                out.add(k);
+            }
+        } catch (Exception ignored) {}
+        return out;
+    }
+
+    static void savePacks(Context c, List<Pack> l) {
+        JSONArray a = new JSONArray();
+        try {
+            for (Pack k : l) {
+                JSONObject o = new JSONObject();
+                o.put("id", k.id);
+                o.put("name", k.name);
+                o.put("limit", k.limit);
+                JSONArray ps = new JSONArray();
+                for (String p : k.pkgs) ps.put(p);
+                o.put("pkgs", ps);
+                a.put(o);
+            }
+        } catch (Exception ignored) {}
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("packs", a.toString()).apply();
+    }
+
+    static Pack pack(Context c, String id) {
+        if (id == null) return null;
+        for (Pack k : packs(c)) if (k.id.equals(id)) return k;
+        return null;
+    }
+
+    /** Combined foreground ms of every app in the pack, from a {package -> per-day ms} map of today. */
+    static long packUsed(Pack k, Map<String, long[]> today) {
+        long s = 0;
+        for (String p : k.pkgs) {
+            long[] a = today.get(p);
+            if (a != null && a.length > 0) s += a[0];
+        }
+        return s;
+    }
+
+    static void ignorePackToday(Context c, String id) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
+                .putLong("pign_" + id, midnight(Calendar.getInstance()).getTimeInMillis()).apply();
+    }
+
+    static boolean packIgnored(Context c, String id) {
+        return c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getLong("pign_" + id, 0)
+                == midnight(Calendar.getInstance()).getTimeInMillis();
+    }
+
+    static boolean serviceOn(Context c) {
+        String s = android.provider.Settings.Secure.getString(c.getContentResolver(),
+                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        return s != null && s.contains(c.getPackageName() + "/");
     }
 
     static String fmtTotal(long ms) {

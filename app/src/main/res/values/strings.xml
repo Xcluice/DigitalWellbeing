@@ -2,5 +2,5 @@
 <resources>
     <string name="widget_desc">Your screen time</string>
     <string name="a11y_label">App timers</string>
-    <string name="a11y_desc">Lets Digital Wellbeing know which app is open so it can enforce your app timers and keep the widget up to date. It does not read the screen.</string>
+    <string name="a11y_desc">Lets Digital Wellbeing know which app is open so it can enforce your app timers and app packs and keep the widget up to date. It also looks at YouTube only to count Shorts. It never reads or stores what you see.</string>
 </resources>

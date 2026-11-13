@@ -353,8 +353,12 @@ public class MainActivity extends Activity {
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(24), dp(14), dp(24), dp(28));
         box.addView(tv("Settings", 20, th.text));
-        String[] titles = {"Themes", "Colour options", "Notifications", "Check for updates", "Refresh data"};
+        int np = Usage.packs(this).size();
+        String[] titles = {"Themes", "Colour options", "Notifications", "App packs", "YouTube Shorts",
+                "Check for updates", "Refresh data"};
         String[] subs = {Themes.get(this).name, "Accent and chart colours", "Update alerts and daily summary",
+                np == 0 ? "Shared limit for a group of apps" : np == 1 ? "1 pack" : np + " packs",
+                Usage.shortsOn(this) ? Usage.shortsCount(this) + " of " + Usage.shortsLimit(this) + " Shorts today" : "Off",
                 "Installed: build " + Updater.installed(this), "Reload your usage"};
         for (int i = 0; i < titles.length; i++) {
             final int id = i;
@@ -371,7 +375,9 @@ public class MainActivity extends Activity {
                     if (id == 0) showThemes();
                     else if (id == 1) showColors();
                     else if (id == 2) showNotifSettings();
-                    else if (id == 3) checkUpdate(true);
+                    else if (id == 3) openPacks();
+                    else if (id == 4) showShorts();
+                    else if (id == 5) checkUpdate(true);
                     else { loadedWeek = -1; load(); }
                 }
             });
@@ -379,7 +385,10 @@ public class MainActivity extends Activity {
             if (i == 0) rp.topMargin = dp(10);
             box.addView(row, rp);
         }
-        dg[0] = sheet(box, 0);
+        ScrollView ssv = new ScrollView(this);
+        ssv.setVerticalScrollBarEnabled(false);
+        ssv.addView(box);
+        dg[0] = sheet(ssv, 0);
         dg[0].show();
     }
 
@@ -1079,6 +1088,139 @@ public class MainActivity extends Activity {
                 })
                 .setNegativeButton("Later", null)
                 .show();
+    }
+
+    // ---- App packs
+    private void openPacks() {
+        startActivity(new Intent(this, PacksActivity.class));
+        overridePendingTransition(R.anim.slide_in_right, R.anim.fade_out);
+    }
+
+    // ---- YouTube Shorts counter
+    private TextView stepBtn(String s) {
+        TextView t = tv(s, 18, th.text);
+        t.setGravity(Gravity.CENTER);
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(th.bg);
+        g.setCornerRadius(dp(20));
+        g.setStroke(dp(1), th.div);
+        t.setBackground(g);
+        return t;
+    }
+
+    private void showShorts() {
+        final boolean[] on = {Usage.shortsOn(this)};
+        final int[] lim = {Usage.shortsLimit(this)};
+        final int count = Usage.shortsCount(this);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(24), dp(14), dp(24), dp(28));
+        box.addView(tv("YouTube Shorts", 20, th.text));
+        TextView sub = tv("Counts the Shorts you swipe through. At the limit, Shorts close and only regular videos "
+                + "play until midnight.", 13, th.sub);
+        sub.setLineSpacing(0, 1.15f);
+        LinearLayout.LayoutParams subp = new LinearLayout.LayoutParams(-2, -2);
+        subp.topMargin = dp(6);
+        box.addView(sub, subp);
+
+        final TextView big = tv("0", 46, th.text);
+        LinearLayout.LayoutParams bp = new LinearLayout.LayoutParams(-2, -2);
+        bp.topMargin = dp(22);
+        box.addView(big, bp);
+        final TextView of = tv("", 14, th.sub);
+        LinearLayout.LayoutParams ofp = new LinearLayout.LayoutParams(-2, -2);
+        ofp.topMargin = dp(6);
+        box.addView(of, ofp);
+        of.setText("Shorts today, of " + lim[0]);
+        ValueAnimator va = ValueAnimator.ofInt(0, count);
+        va.setDuration(count == 0 ? 1 : 800);
+        va.setInterpolator(decel);
+        va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override public void onAnimationUpdate(ValueAnimator a) {
+                big.setText(String.valueOf((int) a.getAnimatedValue()));
+            }
+        });
+        va.start();
+
+        // On / off
+        LinearLayout r1 = new LinearLayout(this);
+        r1.setOrientation(LinearLayout.HORIZONTAL);
+        r1.setGravity(Gravity.CENTER_VERTICAL);
+        r1.addView(tv("Limit Shorts", 16, th.text), new LinearLayout.LayoutParams(0, -2, 1f));
+        final android.widget.Switch sw = new android.widget.Switch(this);
+        sw.setChecked(on[0]);
+        sw.setThumbTintList(ColorStateList.valueOf(th.text));
+        sw.setTrackTintList(ColorStateList.valueOf(th.grid));
+        r1.addView(sw);
+        LinearLayout.LayoutParams r1p = new LinearLayout.LayoutParams(-1, -2);
+        r1p.topMargin = dp(26);
+        box.addView(r1, r1p);
+
+        // Limit stepper
+        LinearLayout r2 = new LinearLayout(this);
+        r2.setOrientation(LinearLayout.HORIZONTAL);
+        r2.setGravity(Gravity.CENTER_VERTICAL);
+        r2.addView(tv("Daily limit", 16, th.text), new LinearLayout.LayoutParams(0, -2, 1f));
+        TextView minus = stepBtn("−");
+        final TextView val = tv(String.valueOf(lim[0]), 17, th.text);
+        val.setGravity(Gravity.CENTER);
+        TextView plus = stepBtn("+");
+        r2.addView(minus, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        r2.addView(val, new LinearLayout.LayoutParams(dp(56), -2));
+        r2.addView(plus, new LinearLayout.LayoutParams(dp(40), dp(40)));
+        LinearLayout.LayoutParams r2p = new LinearLayout.LayoutParams(-1, -2);
+        r2p.topMargin = dp(20);
+        box.addView(r2, r2p);
+
+        sw.setOnCheckedChangeListener(new android.widget.CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(android.widget.CompoundButton b, boolean c) {
+                on[0] = c;
+                Usage.setShorts(MainActivity.this, on[0], lim[0]);
+            }
+        });
+        View.OnClickListener stepper = new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                int delta = ((TextView) v).getText().toString().equals("+") ? 5 : -5;
+                lim[0] = Math.max(5, Math.min(500, lim[0] + delta));
+                val.setText(String.valueOf(lim[0]));
+                of.setText("Shorts today, of " + lim[0]);
+                Usage.setShorts(MainActivity.this, on[0], lim[0]);
+                val.setScaleX(0.85f);
+                val.setScaleY(0.85f);
+                val.animate().scaleX(1f).scaleY(1f).setDuration(220)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(3f)).start();
+            }
+        };
+        minus.setOnClickListener(stepper);
+        plus.setOnClickListener(stepper);
+
+        TextView reset = tv("Reset today's count", 14, th.sub);
+        reset.setPadding(0, dp(14), dp(20), dp(14));
+        reset.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                Usage.shortsReset(MainActivity.this);
+                big.setText("0");
+                big.setAlpha(0f);
+                big.animate().alpha(1f).setDuration(300).start();
+            }
+        });
+        LinearLayout.LayoutParams rsp = new LinearLayout.LayoutParams(-2, -2);
+        rsp.topMargin = dp(12);
+        box.addView(reset, rsp);
+
+        if (!serviceOn()) {
+            TextView warn = tv("Turn on \"App timers\" in Accessibility settings so Shorts can be counted. Tap to open.",
+                    13, th.text);
+            warn.setLineSpacing(0, 1.15f);
+            warn.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { askService(); }
+            });
+            LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(-2, -2);
+            wp.topMargin = dp(6);
+            box.addView(warn, wp);
+        }
+        sheet(box, 0).show();
     }
 
     // ---- App timers
