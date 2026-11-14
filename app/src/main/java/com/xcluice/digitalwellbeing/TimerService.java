@@ -39,6 +39,8 @@ public class TimerService extends AccessibilityService {
     // YouTube Shorts state
     private boolean inShorts;
     private View lockView;
+    private long lockAt;
+    private boolean inShortsLock;
     private long lastScan, lastSwipe, lastKick;
 
     private final BroadcastReceiver unlock = new BroadcastReceiver() {
@@ -56,7 +58,7 @@ public class TimerService extends AccessibilityService {
     @Override
     public void onDestroy() {
         try { unregisterReceiver(unlock); } catch (Exception ignored) {}
-        removeShortsLock();
+        removeLock();
         ex.shutdownNow();
         super.onDestroy();
     }
@@ -74,10 +76,12 @@ public class TimerService extends AccessibilityService {
         if (p.equals(YT)) shorts(e, t);
         if (t != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
 
-        if (!p.equals(YT)) {
-            inShorts = false;
-            // Left YouTube (home, another app): the lock screen has done its job.
-            if (lockView != null && !p.equals(getPackageName())) removeShortsLock();
+        if (!p.equals(YT)) inShorts = false;
+        // The user moved on (another app, home): the lock screen has done its job. A short grace period
+        // lets the "go home" we trigger ourselves settle first.
+        if (lockView != null && !p.equals(getPackageName()) && !(inShortsLock && p.equals(YT))
+                && SystemClock.uptimeMillis() - lockAt > 1200) {
+            removeLock();
         }
         if (p.equals(current)) return;
         if (p.equals(getPackageName())) { current = p; gen++; return; }
@@ -167,6 +171,19 @@ public class TimerService extends AccessibilityService {
 
     private void showShortsLock() {
         if (lockView != null) return;
+        inShortsLock = true;
+        View v = new ShortsLockView(this, new Runnable() {
+            @Override public void run() { removeLock(); }
+        });
+        if (!showLock(v)) {
+            startActivity(new Intent(this, ShortsBlockActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+        }
+    }
+
+    /** Adds a full-screen window over whatever is on screen. Returns false if Android refuses it. */
+    private boolean showLock(View v) {
+        removeLock();
         try {
             WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
             WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
@@ -178,20 +195,17 @@ public class TimerService extends AccessibilityService {
             if (Build.VERSION.SDK_INT >= 28) {
                 lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
             }
-            View v = new ShortsLockView(this, new Runnable() {
-                @Override public void run() { removeShortsLock(); }
-            });
             wm.addView(v, lp);
             lockView = v;
+            lockAt = SystemClock.uptimeMillis();
+            return true;
         } catch (Exception err) {
             lockView = null;
-            // Overlay not possible: fall back to a regular screen.
-            startActivity(new Intent(this, ShortsBlockActivity.class)
-                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+            return false;
         }
     }
 
-    private void removeShortsLock() {
+    private void removeLock() {
         View v = lockView;
         lockView = null;
         if (v == null) return;
@@ -262,14 +276,33 @@ public class TimerService extends AccessibilityService {
         });
     }
 
-    private void block(String p, String packId) {
+    private void block(final String p, final String packId) {
         gen++;
         current = "";
-        performGlobalAction(GLOBAL_ACTION_HOME);
-        Intent i = new Intent(this, BlockActivity.class)
-                .putExtra("pkg", p)
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        if (packId != null) i.putExtra("pack", packId);
-        startActivity(i);
+        inShortsLock = false;
+        View v = new AppLockView(this, p, packId,
+                new Runnable() {
+                    @Override public void run() { removeLock(); }
+                },
+                new Runnable() {
+                    @Override public void run() {
+                        if (packId != null) Usage.ignorePackToday(TimerService.this, packId);
+                        else Usage.ignoreToday(TimerService.this, p);
+                        removeLock();
+                        Intent li = getPackageManager().getLaunchIntentForPackage(p);
+                        if (li != null) startActivity(li.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    }
+                });
+        if (showLock(v)) {
+            // The overlay already covers the app; send the app away behind it.
+            performGlobalAction(GLOBAL_ACTION_HOME);
+        } else {
+            performGlobalAction(GLOBAL_ACTION_HOME);
+            Intent i = new Intent(this, BlockActivity.class)
+                    .putExtra("pkg", p)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            if (packId != null) i.putExtra("pack", packId);
+            startActivity(i);
+        }
     }
 }
