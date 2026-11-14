@@ -5,10 +5,13 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.PixelFormat;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.view.View;
+import android.view.WindowManager;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Toast;
@@ -35,6 +38,7 @@ public class TimerService extends AccessibilityService {
 
     // YouTube Shorts state
     private boolean inShorts;
+    private View lockView;
     private long lastScan, lastSwipe, lastKick;
 
     private final BroadcastReceiver unlock = new BroadcastReceiver() {
@@ -52,6 +56,7 @@ public class TimerService extends AccessibilityService {
     @Override
     public void onDestroy() {
         try { unregisterReceiver(unlock); } catch (Exception ignored) {}
+        removeShortsLock();
         ex.shutdownNow();
         super.onDestroy();
     }
@@ -69,7 +74,11 @@ public class TimerService extends AccessibilityService {
         if (p.equals(YT)) shorts(e, t);
         if (t != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
 
-        if (!p.equals(YT)) inShorts = false;
+        if (!p.equals(YT)) {
+            inShorts = false;
+            // Left YouTube (home, another app): the lock screen has done its job.
+            if (lockView != null && !p.equals(getPackageName())) removeShortsLock();
+        }
         if (p.equals(current)) return;
         if (p.equals(getPackageName())) { current = p; gen++; return; }
         if (getPackageManager().getLaunchIntentForPackage(p) == null) return; // keyboards, system UI...
@@ -137,19 +146,58 @@ public class TimerService extends AccessibilityService {
         return true;
     }
 
-    /** Leave Shorts. Long videos keep working because only the Shorts screen is closed. */
+    /**
+     * Shorts limit reached. The lock screen is drawn first, as a window straight over YouTube, so there is no
+     * gap; only then is Shorts closed behind it. Long videos keep working.
+     */
     private void kick() {
         long now = SystemClock.uptimeMillis();
         if (now - lastKick < 1500) return;
         lastKick = now;
         inShorts = false;
+        showShortsLock();
         performGlobalAction(GLOBAL_ACTION_BACK);
+        // If Shorts is somehow still on screen behind the overlay, close it again.
         h.postDelayed(new Runnable() {
             @Override public void run() {
-                startActivity(new Intent(TimerService.this, ShortsBlockActivity.class)
-                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+                if (lockView != null && shortsOpen()) performGlobalAction(GLOBAL_ACTION_BACK);
             }
-        }, 150);
+        }, 700);
+    }
+
+    private void showShortsLock() {
+        if (lockView != null) return;
+        try {
+            WindowManager wm = (WindowManager) getSystemService(Context.WINDOW_SERVICE);
+            WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
+                    WindowManager.LayoutParams.MATCH_PARENT, WindowManager.LayoutParams.MATCH_PARENT,
+                    WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
+                            | WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+                    PixelFormat.OPAQUE);
+            if (Build.VERSION.SDK_INT >= 28) {
+                lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+            }
+            View v = new ShortsLockView(this, new Runnable() {
+                @Override public void run() { removeShortsLock(); }
+            });
+            wm.addView(v, lp);
+            lockView = v;
+        } catch (Exception err) {
+            lockView = null;
+            // Overlay not possible: fall back to a regular screen.
+            startActivity(new Intent(this, ShortsBlockActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
+        }
+    }
+
+    private void removeShortsLock() {
+        View v = lockView;
+        lockView = null;
+        if (v == null) return;
+        try {
+            ((WindowManager) getSystemService(Context.WINDOW_SERVICE)).removeView(v);
+        } catch (Exception ignored) {}
     }
 
     // ---- Widget
