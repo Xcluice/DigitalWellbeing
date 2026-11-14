@@ -53,11 +53,43 @@ public class TimerService extends AccessibilityService {
         if (Build.VERSION.SDK_INT >= 33) registerReceiver(unlock, f, Context.RECEIVER_NOT_EXPORTED);
         else registerReceiver(unlock, f);
         widget(true);
+        h.removeCallbacks(watchdog);
+        h.postDelayed(watchdog, 1500);
     }
+
+    /**
+     * Safety net: window events can be dropped or arrive before the service is ready (right after the timer
+     * is set, after an update, when the service reconnects). Every few seconds, look at what is actually in
+     * front and enforce the limits for it.
+     */
+    private final Runnable watchdog = new Runnable() {
+        @Override public void run() {
+            try {
+                if (lockView == null) {
+                    AccessibilityNodeInfo r = getRootInActiveWindow();
+                    if (r != null) {
+                        CharSequence cs = r.getPackageName();
+                        r.recycle();
+                        if (cs != null) {
+                            String p = cs.toString();
+                            if (!p.equals(current) && !p.equals(getPackageName())
+                                    && getPackageManager().getLaunchIntentForPackage(p) != null) {
+                                current = p;
+                                gen++;
+                                check(p, gen);
+                            }
+                        }
+                    }
+                }
+            } catch (Exception ignored) {}
+            h.postDelayed(this, 3000);
+        }
+    };
 
     @Override
     public void onDestroy() {
         try { unregisterReceiver(unlock); } catch (Exception ignored) {}
+        h.removeCallbacks(watchdog);
         removeLock();
         ex.shutdownNow();
         super.onDestroy();

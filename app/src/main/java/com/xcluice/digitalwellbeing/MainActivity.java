@@ -686,10 +686,12 @@ public class MainActivity extends Activity {
         col.addView(time, tp);
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
-        float frac = Math.max(0.05f, Math.min(1f, (float) it.ms / maxMs));
+        float frac = lim > 0 && !m.sys
+                ? Math.max(0.03f, Math.min(1f, it.ms / (lim * 60000f)))
+                : Math.max(0.05f, Math.min(1f, (float) it.ms / maxMs));
         View fill = new View(this);
         GradientDrawable fg = new GradientDrawable();
-        fg.setColor(m.color);
+        fg.setColor(lim > 0 && !m.sys && it.ms >= lim * 60000L ? th.text : m.color);
         fg.setCornerRadius(dp(2));
         fill.setBackground(fg);
         bar.addView(fill, new LinearLayout.LayoutParams(0, dp(4), frac));
@@ -1230,50 +1232,244 @@ public class MainActivity extends Activity {
         return s != null && s.contains(getPackageName() + "/");
     }
 
+    private TextView timerChip(String label, final int minutes, final int[] cur, final Runnable changed) {
+        TextView t = tv(label, 13, th.text);
+        t.setGravity(Gravity.CENTER);
+        t.setPadding(dp(14), dp(10), dp(14), dp(10));
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(th.bg);
+        g.setCornerRadius(dp(18));
+        g.setStroke(dp(1), th.div);
+        t.setBackground(g);
+        Fx.press(t);
+        t.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                cur[0] = minutes > 0 ? minutes : cur[0];
+                changed.run();
+            }
+        });
+        return t;
+    }
+
     private void showTimer(final String pkg, final Meta m) {
-        int cur = Usage.limit(this, pkg);
-        if (cur <= 0) cur = 30;
-        final NumberPicker hp = new NumberPicker(this);
-        hp.setMinValue(0);
-        hp.setMaxValue(23);
-        hp.setValue(cur / 60);
-        final NumberPicker mp = new NumberPicker(this);
-        mp.setMinValue(0);
-        mp.setMaxValue(59);
-        mp.setValue(cur % 60);
-        LinearLayout l = new LinearLayout(this);
-        l.setOrientation(LinearLayout.HORIZONTAL);
-        l.setGravity(Gravity.CENTER);
-        l.setPadding(dp(16), dp(16), dp(16), dp(8));
-        l.addView(hp);
-        TextView hl = tv("hr", 15, th.text);
-        hl.setPadding(dp(8), 0, dp(24), 0);
-        l.addView(hl);
-        l.addView(mp);
-        TextView ml = tv("min", 15, th.text);
-        ml.setPadding(dp(8), 0, 0, 0);
-        l.addView(ml);
-        AlertDialog.Builder b = new AlertDialog.Builder(this, dlgStyle())
-                .setTitle(m.label + " timer")
-                .setView(l)
-                .setPositiveButton("Set timer", new android.content.DialogInterface.OnClickListener() {
-                    @Override public void onClick(android.content.DialogInterface dlg, int w) {
-                        int total = hp.getValue() * 60 + mp.getValue();
-                        Usage.setLimit(MainActivity.this, pkg, total);
-                        render();
-                        if (total > 0 && !serviceOn()) askService();
+        final int existing = Usage.limit(this, pkg);
+        final int[] cur = {existing > 0 ? existing : 30};
+        final long[] used = {0};
+        final Dialog[] dg = new Dialog[1];
+
+        final LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(24), dp(16), dp(24), dp(24));
+
+        // Header: icon + name
+        LinearLayout head = new LinearLayout(this);
+        head.setOrientation(LinearLayout.HORIZONTAL);
+        head.setGravity(Gravity.CENTER_VERTICAL);
+        if (m.icon != null) {
+            ImageView ic = new ImageView(this);
+            ic.setImageDrawable(m.icon);
+            head.addView(ic, new LinearLayout.LayoutParams(dp(36), dp(36)));
+        }
+        TextView ttl = tv(m.label + " timer", 20, th.text);
+        ttl.setSingleLine(true);
+        ttl.setEllipsize(TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams ttp = new LinearLayout.LayoutParams(0, -2, 1f);
+        ttp.leftMargin = dp(12);
+        head.addView(ttl, ttp);
+        box.addView(head);
+
+        TextView hint = tv("Set how long you can use this app each day. At the limit it locks until midnight.", 13, th.sub);
+        hint.setLineSpacing(0, 1.15f);
+        LinearLayout.LayoutParams hintp = new LinearLayout.LayoutParams(-2, -2);
+        hintp.topMargin = dp(10);
+        box.addView(hint, hintp);
+
+        // Big value
+        final TextView big = tv("", 44, th.text);
+        LinearLayout.LayoutParams bigp = new LinearLayout.LayoutParams(-2, -2);
+        bigp.topMargin = dp(22);
+        box.addView(big, bigp);
+
+        // Fill bar: how much of the chosen limit is already used today
+        final FrameLayout track = new FrameLayout(this);
+        GradientDrawable tg = new GradientDrawable();
+        tg.setColor(th.div);
+        tg.setCornerRadius(dp(5));
+        track.setBackground(tg);
+        final View fill = new View(this);
+        GradientDrawable fg = new GradientDrawable();
+        fg.setColor(th.text);
+        fg.setCornerRadius(dp(5));
+        fill.setBackground(fg);
+        fill.setPivotX(0f);
+        track.addView(fill, new FrameLayout.LayoutParams(-1, -1));
+        LinearLayout.LayoutParams trp = new LinearLayout.LayoutParams(-1, dp(10));
+        trp.topMargin = dp(14);
+        box.addView(track, trp);
+        final TextView status = tv("", 13, th.sub);
+        LinearLayout.LayoutParams stp = new LinearLayout.LayoutParams(-2, -2);
+        stp.topMargin = dp(10);
+        box.addView(status, stp);
+
+        final float[] shown = {0f};
+        final Runnable refresh = new Runnable() {
+            @Override public void run() {
+                big.setText(Usage.fmtTotal(cur[0] * 60000L));
+                big.setScaleX(0.94f);
+                big.setScaleY(0.94f);
+                big.animate().scaleX(1f).scaleY(1f).setDuration(260)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(3f)).start();
+                long lim = cur[0] * 60000L;
+                float f = Math.min(1f, used[0] / (float) lim);
+                ValueAnimator va = ValueAnimator.ofFloat(shown[0], f);
+                va.setDuration(520);
+                va.setInterpolator(decel);
+                va.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                    @Override public void onAnimationUpdate(ValueAnimator an) {
+                        shown[0] = (float) an.getAnimatedValue();
+                        fill.setScaleX(shown[0]);
                     }
-                })
-                .setNegativeButton("Cancel", null);
-        if (Usage.limit(this, pkg) > 0) {
-            b.setNeutralButton("Remove", new android.content.DialogInterface.OnClickListener() {
-                @Override public void onClick(android.content.DialogInterface dlg, int w) {
+                });
+                va.start();
+                status.setText(used[0] >= lim
+                        ? "Already used " + Usage.fmtRow(used[0]) + " today. It will lock as soon as you open it."
+                        : Usage.fmtRow(used[0]) + " used today \u00b7 " + Usage.fmtShort(lim - used[0]) + " left");
+            }
+        };
+        refresh.run();
+
+        // Presets
+        LinearLayout chips = new LinearLayout(this);
+        chips.setOrientation(LinearLayout.HORIZONTAL);
+        int[] pm = {15, 30, 60, 120, 180};
+        String[] pl = {"15m", "30m", "1h", "2h", "3h"};
+        for (int i = 0; i < pm.length; i++) {
+            LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(0, -2, 1f);
+            if (i > 0) cp.leftMargin = dp(8);
+            chips.addView(timerChip(pl[i], pm[i], cur, refresh), cp);
+        }
+        LinearLayout.LayoutParams chp = new LinearLayout.LayoutParams(-1, -2);
+        chp.topMargin = dp(20);
+        box.addView(chips, chp);
+
+        // Fine steppers
+        LinearLayout steps = new LinearLayout(this);
+        steps.setOrientation(LinearLayout.HORIZONTAL);
+        final int[] dl = {-60, -5, 5, 60};
+        String[] sl = {"\u2212 1 hr", "\u2212 5 min", "+ 5 min", "+ 1 hr"};
+        for (int i = 0; i < dl.length; i++) {
+            final int delta = dl[i];
+            TextView st = tv(sl[i], 13, th.text);
+            st.setGravity(Gravity.CENTER);
+            st.setPadding(dp(8), dp(10), dp(8), dp(10));
+            GradientDrawable sg = new GradientDrawable();
+            sg.setColor(th.sheet);
+            sg.setCornerRadius(dp(18));
+            sg.setStroke(dp(1), th.div);
+            st.setBackground(sg);
+            Fx.press(st);
+            st.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    cur[0] = Math.max(5, Math.min(24 * 60 - 1, cur[0] + delta));
+                    refresh.run();
+                }
+            });
+            LinearLayout.LayoutParams sp = new LinearLayout.LayoutParams(0, -2, 1f);
+            if (i > 0) sp.leftMargin = dp(8);
+            steps.addView(st, sp);
+        }
+        LinearLayout.LayoutParams stpp = new LinearLayout.LayoutParams(-1, -2);
+        stpp.topMargin = dp(10);
+        box.addView(steps, stpp);
+
+        if (!serviceOn()) {
+            TextView warn = tv("The \"App timers\" accessibility service is off, so timers can't lock apps yet. Tap here to turn it on.",
+                    13, th.text);
+            warn.setLineSpacing(0, 1.15f);
+            warn.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) { askService(); }
+            });
+            LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(-2, -2);
+            wp.topMargin = dp(18);
+            box.addView(warn, wp);
+        }
+
+        // Save
+        final TextView save = tv(existing > 0 ? "Update timer" : "Set timer", 16, th.bg);
+        save.setGravity(Gravity.CENTER);
+        GradientDrawable sv = new GradientDrawable();
+        sv.setColor(th.text);
+        sv.setCornerRadius(dp(26));
+        save.setBackground(sv);
+        Fx.press(save);
+        save.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                save.setOnClickListener(null);
+                Usage.setLimit(MainActivity.this, pkg, cur[0]);
+                save.setText("Timer set \u2713");
+                save.setScaleX(0.92f);
+                save.setScaleY(0.92f);
+                save.animate().scaleX(1f).scaleY(1f).setDuration(320)
+                        .setInterpolator(new android.view.animation.OvershootInterpolator(4f)).start();
+                ui.postDelayed(new Runnable() {
+                    @Override public void run() {
+                        if (dg[0] != null) dg[0].dismiss();
+                        render();
+                        if (!serviceOn()) askService();
+                    }
+                }, 520);
+            }
+        });
+        LinearLayout.LayoutParams svp = new LinearLayout.LayoutParams(-1, dp(52));
+        svp.topMargin = dp(22);
+        box.addView(save, svp);
+
+        if (existing > 0) {
+            TextView rm = tv("Remove timer", 14, th.sub);
+            rm.setGravity(Gravity.CENTER);
+            rm.setPadding(0, dp(16), 0, dp(4));
+            rm.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
                     Usage.setLimit(MainActivity.this, pkg, 0);
+                    if (dg[0] != null) dg[0].dismiss();
                     render();
                 }
             });
+            box.addView(rm, new LinearLayout.LayoutParams(-1, -2));
         }
-        b.show();
+
+        ScrollView sc = new ScrollView(this);
+        sc.setVerticalScrollBarEnabled(false);
+        sc.addView(box);
+        dg[0] = sheet(sc, 0);
+        dg[0].show();
+
+        // Entrance: rows rise in one after another.
+        for (int i = 0; i < box.getChildCount(); i++) {
+            View c = box.getChildAt(i);
+            c.setAlpha(0f);
+            c.setTranslationY(dp(16));
+            c.animate().alpha(1f).translationY(0f).setStartDelay(60L + i * 45L).setDuration(340)
+                    .setInterpolator(decel).start();
+        }
+
+        // Today's real usage, so the bar fills to where you actually are.
+        new Thread(new Runnable() {
+            @Override public void run() {
+                long u = 0;
+                try {
+                    if (Usage.hasAccess(MainActivity.this)) {
+                        long[] a = Usage.range(MainActivity.this,
+                                Usage.midnight(Calendar.getInstance()).getTimeInMillis(), 1).get(pkg);
+                        if (a != null && a.length > 0) u = a[0];
+                    }
+                } catch (Exception ignored) {}
+                final long uu = u;
+                ui.post(new Runnable() {
+                    @Override public void run() { used[0] = uu; refresh.run(); }
+                });
+            }
+        }).start();
     }
 
     private void askService() {
