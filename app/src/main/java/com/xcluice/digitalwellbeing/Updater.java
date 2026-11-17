@@ -1,6 +1,8 @@
 package com.xcluice.digitalwellbeing;
 
 import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -50,5 +52,32 @@ final class Updater {
     static int installed(Context c) {
         try { return c.getPackageManager().getPackageInfo(c.getPackageName(), 0).versionCode; }
         catch (Exception e) { return 0; }
+    }
+
+    private static SharedPreferences sp(Context c) {
+        return c.getSharedPreferences("dw_prefs", Context.MODE_PRIVATE);
+    }
+
+    /** Remember the newest build we know about so the update gate still shows when offline. */
+    static void saveForce(Context c, Info i) {
+        if (i == null) return;
+        sp(c).edit().putInt("force_build", i.build).putString("force_url", i.url).apply();
+    }
+
+    static int forceBuild(Context c) { return sp(c).getInt("force_build", 0); }
+
+    static String forceUrl(Context c) { return sp(c).getString("force_url", null); }
+
+    static void clearForce(Context c) {
+        sp(c).edit().remove("force_build").remove("force_url").apply();
+    }
+
+    /** True while a newer build is known and not yet installed. */
+    static boolean mustUpdate(Context c) { return forceBuild(c) > installed(c); }
+
+    static Intent gateIntent(Context c) {
+        return new Intent(c, UpdateActivity.class)
+                .putExtra("build", forceBuild(c))
+                .putExtra("url", forceUrl(c));
     }
 }

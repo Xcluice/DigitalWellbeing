@@ -11,9 +11,10 @@ public class UpdateJob extends JobService {
         new Thread(new Runnable() {
             @Override public void run() {
                 try {
-                    if (!Usage.notifUpd(UpdateJob.this)) return;
                     Updater.Info i = Updater.fetch();
                     if (i == null || i.build <= Updater.installed(UpdateJob.this)) return;
+                    Updater.saveForce(UpdateJob.this, i);
+                    if (!Usage.notifUpd(UpdateJob.this)) return;
                     android.content.SharedPreferences sp = getSharedPreferences("dw_prefs", MODE_PRIVATE);
                     if (sp.getInt("upd_notified", 0) >= i.build) return;
                     PendingIntent pi = PendingIntent.getActivity(UpdateJob.this, 3,
